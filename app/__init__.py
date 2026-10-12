@@ -1,0 +1,1 @@
+"""FitBooking FastAPI application package."""
