@@ -1,4 +1,6 @@
-from datetime import date, datetime
+from __future__ import annotations
+
+from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Literal
 
@@ -85,5 +87,45 @@ class MemberProfileUpdate(BaseModel):
 
 class MemberDashboardResponse(BaseModel):
     profile: MemberProfileResponse
+    weekly_summary: "WeeklySummary"
+    next_session: NextSession | None
+    recommended_coaches: list["RecommendedCoach"]
     upcoming_bookings: list[dict]
     active_packages: list[dict]
+
+
+class WeeklySummary(BaseModel):
+    workouts_done: int
+    workout_goal: int
+    goal_percentage: int
+    calories_burned: int
+    active_minutes: int
+    streak_days: int
+
+
+class NextSession(BaseModel):
+    booking_id: int
+    booking_date: date
+    start_time: time
+    end_time: time
+    duration_minutes: int
+    service_mode: str
+    price: Decimal
+    coach_name: str
+    course_name: str
+    gym_name: str | None = None
+    district: str | None = None
+
+
+class RecommendedCoach(BaseModel):
+    coach_id: int
+    coach_no: str
+    display_name: str
+    avatar_url: str | None
+    coach_level: str
+    bio: str | None
+    service_mode: str
+    years_experience: int | None
+    average_rating: Decimal
+    review_count: int
+    price_per_session: Decimal | None = None

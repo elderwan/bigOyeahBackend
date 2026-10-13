@@ -36,3 +36,28 @@ class FitnessProfileUpdate(BaseModel):
 class PaymentMethodUpdate(BaseModel):
     payment_method: Literal["PROMPTPAY", "CARD", "CASH"]
     label: str = Field(min_length=1, max_length=100)
+
+
+class ProgressMetric(BaseModel):
+    value: Decimal | None
+    unit: str
+    delta: Decimal | None = None
+    category: str | None = None
+
+
+class WeeklyActivitySlot(BaseModel):
+    date: str
+    day: str
+    start_time: str
+    end_time: str
+    title: str
+    coach_name: str
+    status: str
+    duration_minutes: int
+
+
+class ProgressDashboardResponse(BaseModel):
+    updated_at: str | None
+    baseline: dict[str, ProgressMetric]
+    weekly_activity: list[WeeklyActivitySlot]
+    completed_sessions: int

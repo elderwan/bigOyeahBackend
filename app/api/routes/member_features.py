@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
@@ -10,7 +12,10 @@ from app.schemas.features import (
     FitnessProfileUpdate,
     PackagePurchaseRequest,
     PaymentMethodUpdate,
+    ProgressDashboardResponse,
+    ProgressMetric,
     ReviewCreateRequest,
+    WeeklyActivitySlot,
 )
 
 router = APIRouter()
@@ -275,32 +280,81 @@ async def create_review(
     return dict(result.mappings().one())
 
 
-@router.get("/progress", response_model=dict)
+@router.get("/progress", response_model=ProgressDashboardResponse)
 async def get_progress(
     user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_app_db),
-) -> dict:
+) -> ProgressDashboardResponse:
     member_id = await _member_id(user, db)
     profile = await db.execute(
-        text("SELECT * FROM fitness_profile WHERE member_id = :member_id"),
-        {"member_id": member_id},
-    )
-    activity = await db.execute(
         text(
             """
-            SELECT COUNT(*) AS completed_sessions,
-                   COALESCE(SUM(duration_minutes), 0) AS active_minutes,
-                   COALESCE(AVG(price), 0) AS average_session_price
-            FROM booking
-            WHERE member_id = :member_id AND status = 'COMPLETED'
+            SELECT m.weight_kg, m.height_cm, fp.updated_at
+            FROM member m
+            LEFT JOIN fitness_profile fp ON fp.member_id = m.member_id
+            WHERE m.member_id = :member_id
             """
         ),
         {"member_id": member_id},
     )
-    return {
-        "fitness_profile": dict(profile.mappings().one_or_none() or {}),
-        "activity": dict(activity.mappings().one()),
-    }
+    week_start = date.today() - timedelta(days=date.today().weekday())
+    activity = await db.execute(
+        text(
+            """
+            SELECT b.booking_date, b.start_time, b.end_time, b.duration_minutes,
+                   cu.display_name AS coach_name, co.course_name, status
+            FROM booking b
+            JOIN coach c ON c.coach_id = b.coach_id
+            JOIN users cu ON cu.user_id = c.user_id
+            JOIN course co ON co.course_id = b.course_id
+            WHERE b.member_id = :member_id
+              AND b.booking_date BETWEEN :week_start
+                  AND DATE_ADD(:week_start, INTERVAL 6 DAY)
+              AND b.status = 'COMPLETED'
+            ORDER BY b.booking_date, b.start_time
+            """
+        ),
+        {"member_id": member_id, "week_start": week_start},
+    )
+    profile_row = dict(profile.mappings().one_or_none() or {})
+    weight = profile_row.get("weight_kg")
+    height = profile_row.get("height_cm")
+    bmi = None
+    if weight and height:
+        bmi = round(float(weight) / (float(height) / 100) ** 2, 1)
+    bmi_category = (
+        None
+        if bmi is None
+        else "Underweight" if bmi < 18.5
+        else "Healthy range" if bmi < 25
+        else "Overweight" if bmi < 30
+        else "Obesity"
+    )
+    slots = [
+        WeeklyActivitySlot(
+            date=row["booking_date"].isoformat(),
+            day=row["booking_date"].strftime("%a"),
+            start_time=str(row["start_time"]),
+            end_time=str(row["end_time"]),
+            title=row["course_name"],
+            coach_name=row["coach_name"],
+            status=row["status"],
+            duration_minutes=row["duration_minutes"],
+        )
+        for row in activity.mappings().all()
+    ]
+    return ProgressDashboardResponse(
+        updated_at=profile_row.get("updated_at").isoformat()
+        if profile_row.get("updated_at")
+        else None,
+        baseline={
+            "weight": ProgressMetric(value=weight, unit="kg"),
+            "body_fat": ProgressMetric(value=None, unit="%"),
+            "bmi": ProgressMetric(value=bmi, unit="kg/m2", category=bmi_category),
+        },
+        weekly_activity=slots,
+        completed_sessions=len(slots),
+    )
 
 
 @router.put("/progress", response_model=dict)

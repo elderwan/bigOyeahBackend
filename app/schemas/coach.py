@@ -15,6 +15,18 @@ class CoachListItem(BaseModel):
     years_experience: int | None
     average_rating: Decimal | None
     review_count: int
+    districts: list[str] = []
+    service_types: list[str] = []
+    price_per_session: Decimal | None = None
+    verified: bool = True
+
+
+class CoachSearchResponse(BaseModel):
+    items: list[CoachListItem]
+    page: int
+    page_size: int
+    total: int
+    total_pages: int
 
 
 class CoachProfileResponse(CoachListItem):

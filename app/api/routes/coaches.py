@@ -4,7 +4,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
 from app.db.session import get_app_db
-from app.schemas.coach import CoachListItem, CoachProfileResponse, CoachProfileUpdate
+from app.schemas.coach import (
+    CoachListItem,
+    CoachProfileResponse,
+    CoachProfileUpdate,
+    CoachSearchResponse,
+)
 from app.schemas.coaches import CoachSummary
 
 router = APIRouter()
@@ -19,20 +24,29 @@ async def update_my_coach_profile_route(
     return await update_my_coach_profile(payload, user, db)
 
 
-@router.get("", response_model=list[CoachListItem])
+@router.get("", response_model=CoachSearchResponse)
 async def list_coaches(
     search: str | None = Query(default=None, max_length=100),
     district: str | None = None,
     course_id: int | None = Query(default=None, gt=0),
+    service_mode: str | None = Query(default=None, pattern="^(GYM|HOME|BOTH)$"),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=12, ge=1, le=50),
     db: AsyncSession = Depends(get_app_db),
-) -> list[CoachListItem]:
+) -> CoachSearchResponse:
+    offset = (page - 1) * page_size
     result = await db.execute(
         text(
             """
             SELECT c.coach_id, c.coach_no, u.display_name, c.avatar_url,
                    c.coach_level, c.bio, c.service_mode, c.years_experience,
-                   AVG(rc.avg_rating) AS average_rating,
-                   COUNT(rc.review_coach_id) AS review_count
+                   COALESCE(AVG(rc.avg_rating), 0) AS average_rating,
+                   COUNT(rc.review_coach_id) AS review_count,
+                   GROUP_CONCAT(DISTINCT cs.service_area) AS districts,
+                   GROUP_CONCAT(DISTINCT
+                       CASE WHEN cs.is_home_service = 1 THEN 'HOME' ELSE 'GYM' END
+                   ) AS service_types,
+                   MIN(cc.price_per_session) AS price_per_session
             FROM coach c
             JOIN users u ON u.user_id = c.user_id AND u.status = 'ACTIVE'
             LEFT JOIN review_coach rc ON rc.booking_id IN (
@@ -42,17 +56,69 @@ async def list_coaches(
             LEFT JOIN coach_course cc ON cc.coach_id = c.coach_id AND cc.is_active = 1
             WHERE c.status = 'ACTIVE'
               AND (:search IS NULL OR u.display_name LIKE CONCAT('%', :search, '%')
-                   OR c.bio LIKE CONCAT('%', :search, '%'))
+                   OR c.bio LIKE CONCAT('%', :search, '%')
+                   OR cs.service_area LIKE CONCAT('%', :search, '%'))
               AND (:district IS NULL OR cs.service_area = :district)
               AND (:course_id IS NULL OR cc.course_id = :course_id)
+              AND (:service_mode IS NULL OR c.service_mode = :service_mode
+                   OR (:service_mode = 'HOME' AND cs.is_home_service = 1))
             GROUP BY c.coach_id, c.coach_no, u.display_name, c.avatar_url,
                      c.coach_level, c.bio, c.service_mode, c.years_experience
             ORDER BY average_rating DESC, review_count DESC, u.display_name
+            LIMIT :page_size OFFSET :offset
             """
         ),
-        {"search": search, "district": district, "course_id": course_id},
+        {
+            "search": search,
+            "district": district,
+            "course_id": course_id,
+            "service_mode": service_mode,
+            "page_size": page_size,
+            "offset": offset,
+        },
     )
-    return [CoachListItem.model_validate(dict(row)) for row in result.mappings().all()]
+    items = []
+    for row in result.mappings().all():
+        item = dict(row)
+        item["districts"] = [value for value in (item.get("districts") or "").split(",") if value]
+        item["service_types"] = [
+            value for value in (item.get("service_types") or "").split(",") if value
+        ]
+        items.append(CoachListItem.model_validate(item))
+
+    count_result = await db.execute(
+        text(
+            """
+            SELECT COUNT(DISTINCT c.coach_id)
+            FROM coach c
+            JOIN users u ON u.user_id = c.user_id AND u.status = 'ACTIVE'
+            LEFT JOIN coach_service cs ON cs.coach_id = c.coach_id
+            LEFT JOIN coach_course cc ON cc.coach_id = c.coach_id AND cc.is_active = 1
+            WHERE c.status = 'ACTIVE'
+              AND (:search IS NULL OR u.display_name LIKE CONCAT('%', :search, '%')
+                   OR c.bio LIKE CONCAT('%', :search, '%')
+                   OR cs.service_area LIKE CONCAT('%', :search, '%'))
+              AND (:district IS NULL OR cs.service_area = :district)
+              AND (:course_id IS NULL OR cc.course_id = :course_id)
+              AND (:service_mode IS NULL OR c.service_mode = :service_mode
+                   OR (:service_mode = 'HOME' AND cs.is_home_service = 1))
+            """
+        ),
+        {
+            "search": search,
+            "district": district,
+            "course_id": course_id,
+            "service_mode": service_mode,
+        },
+    )
+    total = int(count_result.scalar_one() or 0)
+    return CoachSearchResponse(
+        items=items,
+        page=page,
+        page_size=page_size,
+        total=total,
+        total_pages=(total + page_size - 1) // page_size,
+    )
 
 
 @router.get("/{coach_id}", response_model=CoachSummary)

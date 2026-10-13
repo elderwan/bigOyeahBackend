@@ -211,3 +211,143 @@ The backend CORS configuration must include the frontend origin, for example:
 ```env
 CORS_ORIGINS=["http://10.195.90.91:3000","http://localhost:3000"]
 ```
+
+## Member home
+
+```text
+GET /members/me/dashboard
+```
+
+Authentication: `Authorization: Bearer <access_token>`.
+
+Returns `MemberDashboardResponse` with `profile`, `weekly_summary`,
+`next_session`, `recommended_coaches`, `upcoming_bookings`, and
+`active_packages`. `weekly_summary` contains `workouts_done`, `workout_goal`,
+`goal_percentage`, `calories_burned`, `active_minutes`, and `streak_days`.
+
+Success response (`200`):
+
+```json
+{
+  "success": true,
+  "code": 200,
+  "message": "Success",
+  "data": {
+    "weekly_summary": {
+      "workouts_done": 3,
+      "workout_goal": 4,
+      "goal_percentage": 75,
+      "calories_burned": 1240,
+      "active_minutes": 42,
+      "streak_days": 5
+    },
+    "next_session": {
+      "course_name": "Strength & Conditioning",
+      "booking_date": "2026-10-13",
+      "start_time": "09:10:00",
+      "coach_name": "Tan Chaiyaporn",
+      "gym_name": "Nimman Fitness Club",
+      "duration_minutes": 60
+    },
+    "recommended_coaches": []
+  },
+  "errors": null,
+  "meta": null,
+  "requestId": "uuid",
+  "timestamp": "2026-10-13T00:00:00Z"
+}
+```
+
+Errors: `401` missing/expired token, `403` non-member, `404` member profile
+missing, `500` generic server failure.
+
+```ts
+const home = await fetch(`${API_URL}/members/me/dashboard`, {
+  headers: { Authorization: `Bearer ${token}` },
+});
+const homeEnvelope = await home.json();
+```
+
+## Explore coaches
+
+```text
+GET /coaches
+```
+
+Authentication is optional. Query parameters:
+
+| Parameter | Type | Rules |
+|---|---|---|
+| `search` | string | Optional, maximum 100 characters; searches name, bio, and service area |
+| `district` | string | Optional; `NIMMAN`, `OLD_CITY`, `CENTRAL`, `MAE_RIM`, or `HANG_DONG` |
+| `course_id` | integer | Optional, greater than 0 |
+| `service_mode` | string | Optional; `GYM`, `HOME`, or `BOTH` |
+| `page` | integer | Optional, minimum 1, default 1 |
+| `page_size` | integer | Optional, 1–50, default 12 |
+
+Response type: `CoachSearchResponse`, containing `items`, `page`, `page_size`,
+`total`, and `total_pages`. Each item includes photo URL, verified flag,
+rating, review count, districts, service types, and price per session.
+
+Errors: `400` invalid business filter, `422` invalid query parameter,
+`500` generic server failure.
+
+```ts
+const params = new URLSearchParams({
+  search,
+  district: "NIMMAN",
+  page: "1",
+  page_size: "12",
+});
+const coaches = await fetch(`${API_URL}/coaches?${params}`);
+```
+
+## Progress dashboard
+
+```text
+GET /members/me/progress
+```
+
+Authentication: `Authorization: Bearer <access_token>`.
+
+Response type: `ProgressDashboardResponse`. The baseline includes `weight`
+in kilograms, `body_fat` in percent, and calculated `bmi` with a category.
+The current schema does not store body-fat measurements, so `body_fat.value`
+is `null` until a body-composition column or measurement table is added.
+`weekly_activity` contains completed sessions for Monday–Sunday of the current
+week, including date, day, start/end time, title, coach, status, and duration.
+
+Errors: `401` missing/expired token, `403` non-member, `404` profile missing,
+`422` invalid request, `500` generic server failure.
+
+```ts
+const progress = await fetch(`${API_URL}/members/me/progress`, {
+  headers: { Authorization: `Bearer ${token}` },
+});
+```
+
+## Common error envelopes
+
+All endpoints preserve the HTTP status code.
+
+```json
+{
+  "success": false,
+  "code": 422,
+  "message": "Request validation failed",
+  "data": null,
+  "errors": [
+    {
+      "field": "page_size",
+      "code": "less_than_equal",
+      "message": "Input should be less than or equal to 50"
+    }
+  ],
+  "meta": null,
+  "requestId": "uuid",
+  "timestamp": "2026-10-13T00:00:00Z"
+}
+```
+
+The same envelope shape is used for `400`, `401`, `403`, `404`, `409`, and
+`500`; only `code`, `message`, and `errors` differ.

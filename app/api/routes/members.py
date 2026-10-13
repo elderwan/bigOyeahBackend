@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
@@ -117,8 +119,79 @@ async def get_member_dashboard(
         ),
         {"member_id": member_id},
     )
+    next_session = await db.execute(
+        text(
+            """
+            SELECT b.booking_id, b.booking_date, b.start_time, b.end_time,
+                   b.duration_minutes, b.service_mode, b.price,
+                   cu.display_name AS coach_name, co.course_name,
+                   g.gym_name, g.district
+            FROM booking b
+            JOIN coach c ON c.coach_id = b.coach_id
+            JOIN users cu ON cu.user_id = c.user_id
+            JOIN course co ON co.course_id = b.course_id
+            LEFT JOIN gym g ON g.gym_id = b.gym_id
+            WHERE b.member_id = :member_id
+              AND b.status IN ('PENDING', 'CONFIRMED')
+              AND TIMESTAMP(b.booking_date, b.start_time) >= NOW()
+            ORDER BY b.booking_date, b.start_time
+            LIMIT 1
+            """
+        ),
+        {"member_id": member_id},
+    )
+    week_start = date.today() - timedelta(days=date.today().weekday())
+    weekly = await db.execute(
+        text(
+            """
+            SELECT COUNT(*) AS workouts_done,
+                   COALESCE(SUM(duration_minutes), 0) AS active_minutes,
+                   COALESCE(SUM(duration_minutes * 8), 0) AS calories_burned
+            FROM booking
+            WHERE member_id = :member_id
+              AND status = 'COMPLETED'
+              AND booking_date BETWEEN :week_start AND DATE_ADD(:week_start, INTERVAL 6 DAY)
+            """
+        ),
+        {"member_id": member_id, "week_start": week_start},
+    )
+    recommended = await db.execute(
+        text(
+            """
+            SELECT c.coach_id, c.coach_no, u.display_name, c.avatar_url,
+                   c.coach_level, c.bio, c.service_mode, c.years_experience,
+                   COALESCE(AVG(rc.avg_rating), 0) AS average_rating,
+                   COUNT(rc.review_coach_id) AS review_count,
+                   MIN(cc.price_per_session) AS price_per_session
+            FROM coach c
+            JOIN users u ON u.user_id = c.user_id AND u.status = 'ACTIVE'
+            LEFT JOIN booking rb ON rb.coach_id = c.coach_id
+            LEFT JOIN review_coach rc ON rc.booking_id = rb.booking_id
+            LEFT JOIN coach_course cc ON cc.coach_id = c.coach_id AND cc.is_active = 1
+            WHERE c.status = 'ACTIVE'
+            GROUP BY c.coach_id, c.coach_no, u.display_name, c.avatar_url,
+                     c.coach_level, c.bio, c.service_mode, c.years_experience
+            ORDER BY average_rating DESC, review_count DESC
+            LIMIT 3
+            """
+        )
+    )
+    weekly_row = dict(weekly.mappings().one())
+    workouts_done = int(weekly_row["workouts_done"])
+    weekly_goal = 4
     return MemberDashboardResponse(
         profile=MemberProfileResponse.model_validate(profile),
+        weekly_summary={
+            "workouts_done": workouts_done,
+            "workout_goal": weekly_goal,
+            "goal_percentage": min(100, round(workouts_done / weekly_goal * 100)),
+            "calories_burned": int(weekly_row["calories_burned"]),
+            "active_minutes": int(weekly_row["active_minutes"]),
+            "streak_days": 0,
+        },
+        next_session=dict(next_session.mappings().one_or_none() or {})
+        or None,
+        recommended_coaches=[dict(row) for row in recommended.mappings().all()],
         upcoming_bookings=[dict(row) for row in bookings.mappings().all()],
         active_packages=[dict(row) for row in packages.mappings().all()],
     )

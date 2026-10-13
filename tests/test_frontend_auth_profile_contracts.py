@@ -343,3 +343,22 @@ def test_cors_allows_live_frontend_and_localhost() -> None:
             )
             assert response.status_code == 200
             assert response.headers["access-control-allow-origin"] == origin
+
+
+def test_member_screen_endpoints_require_member_authentication() -> None:
+    with client_for(ContractSession()) as client:
+        for path in (
+            "/api/v1/members/me/dashboard",
+            "/api/v1/members/me/progress",
+        ):
+            response = client.get(path)
+            assert response.status_code == 401
+            assert response.json()["success"] is False
+
+
+def test_explore_query_validation_rejects_invalid_pagination_and_service_mode() -> None:
+    with client_for(ContractSession()) as client:
+        for query in ("page=0", "page_size=51", "service_mode=INVALID"):
+            response = client.get(f"/api/v1/coaches?{query}")
+            assert response.status_code == 422
+            assert response.json()["success"] is False
