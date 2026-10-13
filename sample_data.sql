@@ -12,6 +12,19 @@ USE fitbooking;
 
 START TRANSACTION;
 
+INSERT INTO package_catalog
+    (package_type, paid_sessions, bonus_sessions, price, validity_days, is_active)
+VALUES
+    ('5+1', 5, 1, 3400.00, 180, 1),
+    ('10+3', 10, 3, 8970.00, 180, 1),
+    ('20+7', 20, 7, 17550.00, 180, 1)
+ON DUPLICATE KEY UPDATE
+    paid_sessions = VALUES(paid_sessions),
+    bonus_sessions = VALUES(bonus_sessions),
+    price = VALUES(price),
+    validity_days = VALUES(validity_days),
+    is_active = VALUES(is_active);
+
 -- ---------------------------------------------------------------------------
 -- Accounts
 -- ---------------------------------------------------------------------------

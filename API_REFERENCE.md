@@ -212,6 +212,121 @@ The backend CORS configuration must include the frontend origin, for example:
 CORS_ORIGINS=["http://10.195.90.91:3000","http://localhost:3000"]
 ```
 
+## Complete endpoint matrix
+
+Every endpoint uses the envelope shown above. `data` is the typed response
+model in the `response_model` declaration; validation and error responses use
+`data: null`.
+
+| Method and URL | Authentication | Success data | Error statuses |
+|---|---|---|---|
+| `GET /health` | None | health object | `500` |
+| `POST /auth/register` | None | `AuthResponse` (`201`) | `409`, `422`, `500` |
+| `POST /auth/login` | None | `AuthResponse` | `401`, `422`, `503`, `500` |
+| `GET /auth/me` | Bearer | `UserResponse` | `401`, `500` |
+| `GET /members/me` | Member Bearer | `MemberProfileResponse` | `401`, `403`, `404`, `500` |
+| `PATCH /members/me` | Member Bearer | `MemberProfileResponse` | `401`, `403`, `409`, `422`, `500` |
+| `GET /members/me/dashboard` | Member Bearer | `MemberDashboardResponse` | `401`, `403`, `404`, `500` |
+| `GET /members/me/bookings` | Member Bearer | booking list | `401`, `403`, `422`, `500` |
+| `GET /members/me/bookings/{booking_id}` | Member Bearer | booking detail | `401`, `403`, `404`, `500` |
+| `POST /members/me/bookings/{booking_id}/cancel` | Member Bearer | cancelled booking | `401`, `403`, `404`, `409`, `422`, `500` |
+| `GET /members/me/packages` | Member Bearer | package list | `401`, `403`, `500` |
+| `POST /members/me/packages/purchase` | Member Bearer | package (`201`) | `401`, `403`, `404`, `409`, `422`, `500` |
+| `GET /members/me/reviews` | Member Bearer | review list | `401`, `403`, `500` |
+| `POST /members/me/reviews` | Member Bearer | review (`201`) | `401`, `403`, `409`, `422`, `500` |
+| `GET /members/me/progress` | Member Bearer | `ProgressDashboardResponse` | `401`, `403`, `404`, `500` |
+| `PUT /members/me/progress` | Member Bearer | progress dashboard | `401`, `403`, `422`, `500` |
+| `GET /members/me/payment-history` | Member Bearer | order list | `401`, `403`, `500` |
+| `GET /members/me/payment-methods` | Member Bearer | payment-method list | `401`, `403`, `500` |
+| `POST /members/me/payment-methods` | Member Bearer | payment method (`201`) | `400`, `401`, `403`, `409`, `422`, `500` |
+| `DELETE /members/me/payment-methods/{id}` | Member Bearer | `null` (`204`) | `401`, `403`, `404`, `500` |
+| `GET /members/me/messages` | Member Bearer | message list | `401`, `403`, `422`, `500` |
+| `POST /members/me/messages` | Member Bearer | `MessageResponse` (`201`) | `401`, `403`, `404`, `422`, `500` |
+| `GET /courses` | None | course list | `422`, `500` |
+| `GET /courses/{course_id}` | None | course | `404`, `500` |
+| `GET /gyms` | None | gym list | `422`, `500` |
+| `GET /packages` | None | active package catalog | `500` |
+| `GET /coaches` | None | `CoachSearchResponse` | `422`, `500` |
+| `GET /coaches/{coach_id}` | None | coach summary | `404`, `500` |
+| `GET /coaches/{coach_id}/profile` | None | coach profile | `404`, `500` |
+| `GET /coaches/{coach_id}/courses` | None | coach courses | `404`, `500` |
+| `GET /coaches/{coach_id}/services` | None | coach services | `404`, `500` |
+| `PATCH /coaches/me` | Coach Bearer | coach profile | `401`, `403`, `409`, `422`, `500` |
+| `GET /coaches/{coach_id}/schedule/slots` | None | schedule slot list | `400`, `404`, `422`, `500` |
+| `POST /coaches/{coach_id}/schedule` | Admin/coach Bearer | schedule metadata (`201`) | `400`, `401`, `403`, `404`, `500` |
+| `POST /bookings` | Member Bearer | booking (`201`) | `400`, `401`, `403`, `409`, `422`, `500` |
+| `GET /admin/dashboard` | Admin Bearer | dashboard | `401`, `403`, `500` |
+| `GET /admin/audit-log` | Admin Bearer | audit records | `401`, `403`, `500` |
+
+### Standard error contracts
+
+`400`, `401`, `403`, `404`, `409`, `422`, and `500` all preserve the actual
+HTTP status. Examples:
+
+```json
+{
+  "success": false,
+  "code": 409,
+  "message": "The booking is not reviewable or already has a review",
+  "data": null,
+  "errors": [
+    {
+      "field": "booking_id",
+      "code": "conflict",
+      "message": "The resource conflicts with an existing record"
+    }
+  ],
+  "meta": null,
+  "requestId": "uuid",
+  "timestamp": "2026-10-13T12:00:00Z"
+}
+```
+
+Validation failures use FastAPI/Pydantic field locations and codes:
+
+```json
+{
+  "success": false,
+  "code": 422,
+  "message": "Request validation failed",
+  "data": null,
+  "errors": [
+    {
+      "field": "body.start_time",
+      "code": "value_error",
+      "message": "start_time must align to a 10-minute grid"
+    }
+  ],
+  "meta": null,
+  "requestId": "uuid",
+  "timestamp": "2026-10-13T12:00:00Z"
+}
+```
+
+`500` responses never expose stack traces:
+
+```json
+{
+  "success": false,
+  "code": 500,
+  "message": "Internal server error",
+  "data": null,
+  "errors": null,
+  "meta": null,
+  "requestId": "uuid",
+  "timestamp": "2026-10-13T12:00:00Z"
+}
+```
+
+## Database migration and seed
+
+For an existing database, run `migrations/001_member_application.sql` after
+`schema.sql`. It is idempotent and creates the persistent package catalog,
+tokenized member payment-method records, member-coach messages, and historical
+body measurements. `sample_data.sql` also upserts the three package offers.
+Payment-card data must be represented by a provider token and optional last
+four digits; raw card numbers are never accepted or stored.
+
 ## Member home
 
 ```text

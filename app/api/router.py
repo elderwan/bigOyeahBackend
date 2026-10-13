@@ -9,7 +9,6 @@ from app.api.routes import (
     health,
     member_features,
     members,
-    response_demo,
     schedules,
 )
 
@@ -23,4 +22,3 @@ api_router.include_router(coaches.router, prefix="/coaches", tags=["coaches"])
 api_router.include_router(schedules.router, prefix="/coaches", tags=["schedules"])
 api_router.include_router(bookings.router, prefix="/bookings", tags=["bookings"])
 api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
-api_router.include_router(response_demo.router, tags=["response demo"])

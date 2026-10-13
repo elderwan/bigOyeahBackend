@@ -11,7 +11,11 @@ class BookingService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def create_booking(self, payload: BookingCreateRequest) -> dict:
+    async def create_booking(
+        self,
+        payload: BookingCreateRequest,
+        member_id: int | None = None,
+    ) -> dict:
         end_time = (
             datetime.combine(payload.booking_date, payload.start_time)
             + timedelta(minutes=payload.duration_minutes)
@@ -67,7 +71,7 @@ class BookingService:
                     """
                 ),
                 {
-                    "member_id": payload.member_id,
+                    "member_id": member_id if member_id is not None else payload.member_id,
                     "coach_id": payload.coach_id,
                     "course_id": payload.course_id,
                     "gym_id": payload.gym_id,

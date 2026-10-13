@@ -65,6 +65,22 @@ async def list_gyms(
     return [dict(row) for row in result.mappings().all()]
 
 
+@router.get("/packages", response_model=list[dict])
+async def list_package_catalog(db: AsyncSession = Depends(get_app_db)) -> list[dict]:
+    result = await db.execute(
+        text(
+            """
+            SELECT package_type, paid_sessions, bonus_sessions, price,
+                   validity_days, is_active
+            FROM package_catalog
+            WHERE is_active = 1
+            ORDER BY paid_sessions
+            """
+        )
+    )
+    return [dict(row) for row in result.mappings().all()]
+
+
 @router.get("/coaches/{coach_id}/courses", response_model=list[dict])
 async def list_coach_courses(coach_id: int, db: AsyncSession = Depends(get_app_db)) -> list[dict]:
     result = await db.execute(

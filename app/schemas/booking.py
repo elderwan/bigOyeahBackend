@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class BookingCreateRequest(BaseModel):
-    member_id: int
+    member_id: int | None = None
     coach_id: int
     course_id: int
     gym_id: int | None = None

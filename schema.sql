@@ -356,6 +356,28 @@ CREATE TABLE IF NOT EXISTS `member_package` (
   COLLATE=utf8mb4_0900_ai_ci
   COMMENT='Member session package';
 
+CREATE TABLE IF NOT EXISTS `package_catalog` (
+    `package_type`     ENUM('5+1','10+3','20+7') NOT NULL,
+    `paid_sessions`    SMALLINT UNSIGNED NOT NULL,
+    `bonus_sessions`   SMALLINT UNSIGNED NOT NULL,
+    `price`            DECIMAL(10,2) NOT NULL,
+    `validity_days`    SMALLINT UNSIGNED NOT NULL,
+    `is_active`        TINYINT(1) NOT NULL DEFAULT 1,
+    `created_at`       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at`       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                  ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`package_type`),
+    CONSTRAINT `chk_package_catalog_sessions`
+        CHECK (`paid_sessions` > 0 AND `bonus_sessions` >= 0),
+    CONSTRAINT `chk_package_catalog_price`
+        CHECK (`price` >= 0),
+    CONSTRAINT `chk_package_catalog_validity`
+        CHECK (`validity_days` > 0)
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_0900_ai_ci
+  COMMENT='Active package offers';
+
 CREATE TABLE IF NOT EXISTS `booking` (
     `booking_id`       BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     `member_id`        INT UNSIGNED NOT NULL,
@@ -505,6 +527,53 @@ CREATE TABLE IF NOT EXISTS `orders` (
   COLLATE=utf8mb4_0900_ai_ci
   COMMENT='Booking and package purchase order';
 
+CREATE TABLE IF NOT EXISTS `member_payment_method` (
+    `payment_method_id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `member_id`        INT UNSIGNED NOT NULL,
+    `method_type`      ENUM('PROMPTPAY','CARD','CASH') NOT NULL,
+    `label`            VARCHAR(100) NOT NULL,
+    `provider_token`   VARCHAR(255) NULL,
+    `last_four`        CHAR(4) NULL,
+    `is_default`       TINYINT(1) NOT NULL DEFAULT 0,
+    `status`            ENUM('ACTIVE','REMOVED') NOT NULL DEFAULT 'ACTIVE',
+    `created_at`       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at`       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                  ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`payment_method_id`),
+    KEY `idx_payment_method_member` (`member_id`, `status`, `is_default`),
+    CONSTRAINT `fk_payment_method_member`
+        FOREIGN KEY (`member_id`) REFERENCES `member` (`member_id`)
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
+    CONSTRAINT `chk_payment_method_default`
+        CHECK (`is_default` IN (0,1))
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_0900_ai_ci
+  COMMENT='Member tokenized payment methods';
+
+CREATE TABLE IF NOT EXISTS `member_message` (
+    `message_id`      BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `member_id`       INT UNSIGNED NOT NULL,
+    `coach_id`        INT UNSIGNED NOT NULL,
+    `sender_role`     ENUM('MEMBER','COACH') NOT NULL,
+    `message_text`    VARCHAR(2000) NOT NULL,
+    `read_at`         DATETIME NULL,
+    `created_at`      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`message_id`),
+    KEY `idx_member_message_thread` (`member_id`, `coach_id`, `created_at`),
+    CONSTRAINT `fk_member_message_member`
+        FOREIGN KEY (`member_id`) REFERENCES `member` (`member_id`)
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
+    CONSTRAINT `fk_member_message_coach`
+        FOREIGN KEY (`coach_id`) REFERENCES `coach` (`coach_id`)
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
+    CONSTRAINT `chk_member_message_text`
+        CHECK (CHAR_LENGTH(`message_text`) BETWEEN 1 AND 2000)
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_0900_ai_ci
+  COMMENT='Persistent member-coach messages';
+
 -- ============================================================
 -- 6. Reviews, profiles, KPI records, and audit logs
 -- ============================================================
@@ -599,6 +668,26 @@ CREATE TABLE IF NOT EXISTS `fitness_profile` (
   DEFAULT CHARSET=utf8mb4
   COLLATE=utf8mb4_0900_ai_ci
   COMMENT='Cached member fitness profile';
+
+CREATE TABLE IF NOT EXISTS `member_body_measurement` (
+    `measurement_id`   BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `member_id`        INT UNSIGNED NOT NULL,
+    `weight_kg`        DECIMAL(5,1) NOT NULL,
+    `body_fat_percent` DECIMAL(5,2) NULL,
+    `measured_at`      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`measurement_id`),
+    KEY `idx_body_measurement_member_date` (`member_id`, `measured_at`),
+    CONSTRAINT `fk_body_measurement_member`
+        FOREIGN KEY (`member_id`) REFERENCES `member` (`member_id`)
+        ON DELETE CASCADE ON UPDATE RESTRICT,
+    CONSTRAINT `chk_body_measurement_weight`
+        CHECK (`weight_kg` > 0),
+    CONSTRAINT `chk_body_measurement_fat`
+        CHECK (`body_fat_percent` IS NULL OR `body_fat_percent` BETWEEN 0 AND 100)
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_0900_ai_ci
+  COMMENT='Historical member body measurements';
 
 CREATE TABLE IF NOT EXISTS `coach_kpi_record` (
     `kpi_record_id`        INT UNSIGNED NOT NULL AUTO_INCREMENT,

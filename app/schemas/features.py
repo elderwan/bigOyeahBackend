@@ -1,7 +1,8 @@
+from datetime import datetime
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class BookingCancelRequest(BaseModel):
@@ -23,6 +24,8 @@ class PackagePurchaseRequest(BaseModel):
 
 
 class FitnessProfileUpdate(BaseModel):
+    weight_kg: Decimal | None = Field(default=None, gt=0, max_digits=5, decimal_places=1)
+    body_fat_percent: Decimal | None = Field(default=None, ge=0, le=100, decimal_places=2)
     strongest_area: Literal[
         "UPPER_BODY", "CORE", "LOWER_BODY", "BACK", "SHOULDER", "FULL_BODY"
     ] | None = None
@@ -32,10 +35,44 @@ class FitnessProfileUpdate(BaseModel):
     strongest_score: Decimal | None = Field(default=None, ge=1, le=5)
     weakest_score: Decimal | None = Field(default=None, ge=1, le=5)
 
+    @model_validator(mode="after")
+    def require_weight_for_measurement(self) -> "FitnessProfileUpdate":
+        if self.body_fat_percent is not None and self.weight_kg is None:
+            raise ValueError("weight_kg is required when body_fat_percent is provided")
+        return self
+
 
 class PaymentMethodUpdate(BaseModel):
     payment_method: Literal["PROMPTPAY", "CARD", "CASH"]
     label: str = Field(min_length=1, max_length=100)
+    provider_token: str | None = Field(default=None, min_length=1, max_length=255)
+    last_four: str | None = Field(default=None, pattern=r"^\d{4}$")
+    is_default: bool = False
+
+
+class PaymentMethodResponse(BaseModel):
+    payment_method_id: int
+    method_type: str
+    label: str
+    last_four: str | None
+    is_default: bool
+    status: str
+    created_at: datetime
+
+
+class MessageCreateRequest(BaseModel):
+    coach_id: int = Field(gt=0)
+    message_text: str = Field(min_length=1, max_length=2000)
+
+
+class MessageResponse(BaseModel):
+    message_id: int
+    coach_id: int
+    coach_name: str
+    sender_role: str
+    message_text: str
+    read_at: datetime | None
+    created_at: datetime
 
 
 class ProgressMetric(BaseModel):

@@ -10,7 +10,10 @@ from app.db.session import get_app_db
 from app.schemas.features import (
     BookingCancelRequest,
     FitnessProfileUpdate,
+    MessageCreateRequest,
+    MessageResponse,
     PackagePurchaseRequest,
+    PaymentMethodResponse,
     PaymentMethodUpdate,
     ProgressDashboardResponse,
     ProgressMetric,
@@ -164,12 +167,22 @@ async def purchase_package(
     db: AsyncSession = Depends(get_app_db),
 ) -> dict:
     member_id = await _member_id(user, db)
-    packages = {
-        "5+1": (6, 3400),
-        "10+3": (13, 8970),
-        "20+7": (27, 17550),
-    }
-    total_sessions, price = packages[payload.package_type]
+    catalog_result = await db.execute(
+        text(
+            """
+            SELECT paid_sessions, bonus_sessions, price, validity_days
+            FROM package_catalog
+            WHERE package_type = :package_type AND is_active = 1
+            """
+        ),
+        {"package_type": payload.package_type},
+    )
+    catalog = catalog_result.mappings().one_or_none()
+    if catalog is None:
+        raise HTTPException(status_code=404, detail="Package offer not found")
+    total_sessions = int(catalog["paid_sessions"] + catalog["bonus_sessions"])
+    price = catalog["price"]
+    expire_date = date.today() + timedelta(days=int(catalog["validity_days"]))
     try:
         result = await db.execute(
             text(
@@ -178,7 +191,7 @@ async def purchase_package(
                     (member_id, package_type, total_sessions, remaining_sessions,
                      price, purchase_date, expire_date, status)
                 VALUES (:member_id, :package_type, :total_sessions, :remaining_sessions,
-                        :price, CURDATE(), DATE_ADD(CURDATE(), INTERVAL 180 DAY), 'ACTIVE')
+                         :price, CURDATE(), :expire_date, 'ACTIVE')
                 """
             ),
             {
@@ -187,6 +200,7 @@ async def purchase_package(
                 "total_sessions": total_sessions,
                 "remaining_sessions": total_sessions,
                 "price": price,
+                "expire_date": expire_date,
             },
         )
         package_id = result.lastrowid
@@ -289,9 +303,28 @@ async def get_progress(
     profile = await db.execute(
         text(
             """
-            SELECT m.weight_kg, m.height_cm, fp.updated_at
+            SELECT m.height_cm, m.weight_kg AS member_weight_kg, fp.updated_at,
+                   latest_measurement.weight_kg,
+                   latest_measurement.body_fat_percent,
+                   previous_measurement.weight_kg AS previous_weight_kg
             FROM member m
             LEFT JOIN fitness_profile fp ON fp.member_id = m.member_id
+            LEFT JOIN member_body_measurement latest_measurement
+                ON latest_measurement.measurement_id = (
+                    SELECT latest.measurement_id
+                    FROM member_body_measurement latest
+                    WHERE latest.member_id = m.member_id
+                    ORDER BY latest.measured_at DESC, latest.measurement_id DESC
+                    LIMIT 1
+                )
+            LEFT JOIN member_body_measurement previous_measurement
+                ON previous_measurement.measurement_id = (
+                    SELECT older.measurement_id
+                    FROM member_body_measurement older
+                    WHERE older.member_id = m.member_id
+                    ORDER BY older.measured_at DESC, older.measurement_id DESC
+                    LIMIT 1 OFFSET 1
+                )
             WHERE m.member_id = :member_id
             """
         ),
@@ -318,6 +351,8 @@ async def get_progress(
     )
     profile_row = dict(profile.mappings().one_or_none() or {})
     weight = profile_row.get("weight_kg")
+    if weight is None:
+        weight = profile_row.get("member_weight_kg")
     height = profile_row.get("height_cm")
     bmi = None
     if weight and height:
@@ -348,8 +383,19 @@ async def get_progress(
         if profile_row.get("updated_at")
         else None,
         baseline={
-            "weight": ProgressMetric(value=weight, unit="kg"),
-            "body_fat": ProgressMetric(value=None, unit="%"),
+            "weight": ProgressMetric(
+                value=weight,
+                unit="kg",
+                delta=(
+                    round(float(weight) - float(profile_row["previous_weight_kg"]), 1)
+                    if weight is not None and profile_row.get("previous_weight_kg") is not None
+                    else None
+                ),
+            ),
+            "body_fat": ProgressMetric(
+                value=profile_row.get("body_fat_percent"),
+                unit="%",
+            ),
             "bmi": ProgressMetric(value=bmi, unit="kg/m2", category=bmi_category),
         },
         weekly_activity=slots,
@@ -364,7 +410,33 @@ async def update_progress(
     db: AsyncSession = Depends(get_app_db),
 ) -> dict:
     member_id = await _member_id(user, db)
-    values = payload.model_dump()
+    values = payload.model_dump(exclude_none=True)
+    measurement_values = {
+        key: values.pop(key)
+        for key in ("weight_kg", "body_fat_percent")
+        if key in values
+    }
+    if measurement_values:
+        await db.execute(
+            text(
+                """
+                INSERT INTO member_body_measurement
+                    (member_id, weight_kg, body_fat_percent)
+                VALUES (:member_id, :weight_kg, :body_fat_percent)
+                """
+            ),
+            {
+                "member_id": member_id,
+                "weight_kg": measurement_values.get("weight_kg"),
+                "body_fat_percent": measurement_values.get("body_fat_percent"),
+            },
+        )
+        await db.execute(
+            text(
+                "UPDATE member SET weight_kg = :weight_kg WHERE member_id = :member_id"
+            ),
+            {"weight_kg": measurement_values["weight_kg"], "member_id": member_id},
+        )
     await db.execute(
         text(
             """
@@ -409,21 +481,183 @@ async def payment_history(
     return [dict(row) for row in result.mappings().all()]
 
 
-@router.get("/payment-methods", response_model=list[dict])
-async def payment_methods(user: dict = Depends(get_current_user)) -> list[dict]:
-    if user["role"] != "MEMBER":
-        raise HTTPException(status_code=403, detail="Member access required")
-    return []
+@router.get("/payment-methods", response_model=list[PaymentMethodResponse])
+async def payment_methods(
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_app_db),
+) -> list[dict]:
+    member_id = await _member_id(user, db)
+    result = await db.execute(
+        text(
+            """
+            SELECT payment_method_id, method_type, label, last_four,
+                   is_default, status, created_at
+            FROM member_payment_method
+            WHERE member_id = :member_id AND status = 'ACTIVE'
+            ORDER BY is_default DESC, created_at DESC
+            """
+        ),
+        {"member_id": member_id},
+    )
+    return [
+        PaymentMethodResponse.model_validate(dict(row)).model_dump()
+        for row in result.mappings().all()
+    ]
 
 
-@router.post("/payment-methods", response_model=dict, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/payment-methods",
+    response_model=PaymentMethodResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def add_payment_method(
     payload: PaymentMethodUpdate,
     user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_app_db),
 ) -> dict:
-    if user["role"] != "MEMBER":
-        raise HTTPException(status_code=403, detail="Member access required")
-    raise HTTPException(
-        status_code=501,
-        detail="Payment methods require a payment-provider integration",
+    member_id = await _member_id(user, db)
+    if payload.payment_method == "CARD" and not payload.provider_token:
+        raise HTTPException(status_code=400, detail="Card provider token is required")
+    try:
+        if payload.is_default:
+            await db.execute(
+                text(
+                    """
+                    UPDATE member_payment_method
+                    SET is_default = 0
+                    WHERE member_id = :member_id AND status = 'ACTIVE'
+                    """
+                ),
+                {"member_id": member_id},
+            )
+        result = await db.execute(
+            text(
+                """
+                INSERT INTO member_payment_method
+                    (member_id, method_type, label, provider_token, last_four, is_default)
+                VALUES
+                    (:member_id, :method_type, :label, :provider_token, :last_four, :is_default)
+                """
+            ),
+            {
+                "member_id": member_id,
+                "method_type": payload.payment_method,
+                "label": payload.label,
+                "provider_token": payload.provider_token,
+                "last_four": payload.last_four,
+                "is_default": payload.is_default,
+            },
+        )
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="Payment method already exists") from None
+    result = await db.execute(
+        text(
+            """
+            SELECT payment_method_id, method_type, label, last_four,
+                   is_default, status, created_at
+            FROM member_payment_method WHERE payment_method_id = :payment_method_id
+            """
+        ),
+        {"payment_method_id": result.lastrowid},
     )
+    return PaymentMethodResponse.model_validate(dict(result.mappings().one()))
+
+
+@router.delete("/payment-methods/{payment_method_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_payment_method(
+    payment_method_id: int,
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_app_db),
+) -> None:
+    member_id = await _member_id(user, db)
+    result = await db.execute(
+        text(
+            """
+            UPDATE member_payment_method
+            SET status = 'REMOVED', is_default = 0
+            WHERE payment_method_id = :payment_method_id
+              AND member_id = :member_id AND status = 'ACTIVE'
+            """
+        ),
+        {"payment_method_id": payment_method_id, "member_id": member_id},
+    )
+    if result.rowcount != 1:
+        raise HTTPException(status_code=404, detail="Payment method not found")
+    await db.commit()
+
+
+@router.get("/messages", response_model=list[MessageResponse])
+async def list_messages(
+    coach_id: int | None = Query(default=None, gt=0),
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_app_db),
+) -> list[MessageResponse]:
+    member_id = await _member_id(user, db)
+    result = await db.execute(
+        text(
+            """
+            SELECT mm.message_id, mm.coach_id, cu.display_name AS coach_name,
+                   mm.sender_role, mm.message_text, mm.read_at, mm.created_at
+            FROM member_message mm
+            JOIN coach c ON c.coach_id = mm.coach_id
+            JOIN users cu ON cu.user_id = c.user_id
+            WHERE mm.member_id = :member_id
+              AND (:coach_id IS NULL OR mm.coach_id = :coach_id)
+            ORDER BY mm.created_at
+            """
+        ),
+        {"member_id": member_id, "coach_id": coach_id},
+    )
+    return [MessageResponse.model_validate(dict(row)) for row in result.mappings().all()]
+
+
+@router.post("/messages", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
+async def send_message(
+    payload: MessageCreateRequest,
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_app_db),
+) -> MessageResponse:
+    member_id = await _member_id(user, db)
+    coach_result = await db.execute(
+        text(
+            """
+            SELECT c.coach_id, u.display_name
+            FROM coach c JOIN users u ON u.user_id = c.user_id
+            WHERE c.coach_id = :coach_id AND c.status = 'ACTIVE'
+            """
+        ),
+        {"coach_id": payload.coach_id},
+    )
+    coach = coach_result.mappings().one_or_none()
+    if coach is None:
+        raise HTTPException(status_code=404, detail="Coach not found")
+    result = await db.execute(
+        text(
+            """
+            INSERT INTO member_message (member_id, coach_id, sender_role, message_text)
+            VALUES (:member_id, :coach_id, 'MEMBER', :message_text)
+            """
+        ),
+        {
+            "member_id": member_id,
+            "coach_id": payload.coach_id,
+            "message_text": payload.message_text,
+        },
+    )
+    await db.commit()
+    created = await db.execute(
+        text(
+            """
+            SELECT mm.message_id, mm.coach_id, cu.display_name AS coach_name,
+                   mm.sender_role, mm.message_text, mm.read_at, mm.created_at
+            FROM member_message mm
+            JOIN coach c ON c.coach_id = mm.coach_id
+            JOIN users cu ON cu.user_id = c.user_id
+            WHERE mm.message_id = :message_id
+            """
+        ),
+        {"message_id": result.lastrowid},
+    )
+    return MessageResponse.model_validate(dict(created.mappings().one()))
