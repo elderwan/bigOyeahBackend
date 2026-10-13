@@ -1,0 +1,32 @@
+$kind: http-request
+description: ""
+url: "{{baseUrl}}/api/v1/members/me/packages?include_inactive=false"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  - key: include_inactive
+    value: "false"
+    disabled: false
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "title": "Include Inactive",
+            "type": "boolean",
+            "default": false
+          }
+        }
+      }
+body:
+  type: text
+  content: ""
+auth:
+  type: bearer
+  credentials:
+    token: "{{bearerToken}}"
+settings: {}
+examples: ./.resources/List My Packages.resources/examples
+order: 1000

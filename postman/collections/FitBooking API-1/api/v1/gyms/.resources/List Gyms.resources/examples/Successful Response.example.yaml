@@ -1,0 +1,39 @@
+$kind: http-example
+request:
+  url: "{{baseUrl}}/api/v1/gyms?district=string"
+  method: GET
+  headers:
+    Accept: application/json
+  queryParams:
+    district: string
+  body:
+    type: text
+    content: ""
+response:
+  statusCode: 200
+  statusText: OK
+  headers:
+    Content-Type: application/json
+  body:
+    type: json
+    content: |-
+      [
+        {
+          "key_0": 6064,
+          "key_1": false
+        },
+        {
+          "key_0": 4108.313074366662,
+          "key_1": 9182.24986867027,
+          "key_2": 9500
+        }
+      ]
+    $type: |-
+      {
+        "type": "array",
+        "title": "Response List Gyms Api V1 Gyms Get",
+        "items": {
+          "type": "object"
+        }
+      }
+order: 1000

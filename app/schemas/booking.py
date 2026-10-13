@@ -25,7 +25,11 @@ class BookingCreateRequest(BaseModel):
         if self.start_time.second != 0 or self.start_time.minute % 10 != 0:
             raise ValueError("start_time must align to a 10-minute grid")
         if self.service_mode == "GYM":
-            if self.gym_id is None or self.service_district is not None or self.service_address is not None:
+            if (
+                self.gym_id is None
+                or self.service_district is not None
+                or self.service_address is not None
+            ):
                 raise ValueError("GYM bookings require gym_id and no home-service fields")
         elif self.gym_id is not None or not self.service_district or not self.service_address:
             raise ValueError("HOME bookings require service_district and service_address only")

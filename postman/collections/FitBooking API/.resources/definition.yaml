@@ -1,0 +1,13 @@
+$kind: collection
+name: FitBooking API
+description: 'FitBooking personal training booking API. Base URL: {{baseUrl}}'
+variables:
+  - key: baseUrl
+    value: 'http://localhost:8000'
+  - key: token
+    value: ''
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{token}}'

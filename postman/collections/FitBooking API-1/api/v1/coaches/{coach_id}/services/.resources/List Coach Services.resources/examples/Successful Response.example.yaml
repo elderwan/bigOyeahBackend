@@ -1,0 +1,38 @@
+$kind: http-example
+request:
+  url: "{{baseUrl}}/api/v1/coaches/:coach_id/services"
+  method: GET
+  headers:
+    Accept: application/json
+  pathVariables:
+    coach_id: "1949"
+  body:
+    type: text
+    content: ""
+response:
+  statusCode: 200
+  statusText: OK
+  headers:
+    Content-Type: application/json
+  body:
+    type: json
+    content: |-
+      [
+        {
+          "key_0": "string"
+        },
+        {
+          "key_0": 9325,
+          "key_1": 5514.148843435439,
+          "key_2": true
+        }
+      ]
+    $type: |-
+      {
+        "type": "array",
+        "title": "Response List Coach Services Api V1 Coaches  Coach Id  Services Get",
+        "items": {
+          "type": "object"
+        }
+      }
+order: 1000

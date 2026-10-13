@@ -1,0 +1,153 @@
+$kind: http-example
+request:
+  url: "{{baseUrl}}/api/v1/members/me"
+  method: PATCH
+  headers:
+    - key: Content-Type
+      value: application/json
+    - key: Accept
+      value: application/json
+    - key: Authorization
+      value: Bearer <token>
+      description: "Added as a part of security scheme: bearer"
+  body:
+    type: json
+    content: |-
+      {
+        "display_name": "string",
+        "email": "D43@e.otoz",
+        "phone": "string",
+        "gender": null,
+        "birth_date": "2018-01-22",
+        "height_cm": null,
+        "weight_kg": null,
+        "fitness_goal": "string"
+      }
+response:
+  statusCode: 200
+  statusText: OK
+  headers:
+    Content-Type: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "member_id": 891,
+        "user_id": 7679,
+        "level_id": 4778,
+        "level_code": "string",
+        "level_name": "string",
+        "discount_rate": "string",
+        "total_spend": "string",
+        "gender": null,
+        "birth_date": "2015-12-16",
+        "height_cm": null,
+        "weight_kg": "string",
+        "fitness_goal": null
+      }
+    $type: |-
+      {
+        "title": "MemberProfileResponse",
+        "type": "object",
+        "properties": {
+          "member_id": {
+            "type": "integer",
+            "title": "Member Id"
+          },
+          "user_id": {
+            "type": "integer",
+            "title": "User Id"
+          },
+          "level_id": {
+            "type": "integer",
+            "title": "Level Id"
+          },
+          "level_code": {
+            "type": "string",
+            "title": "Level Code"
+          },
+          "level_name": {
+            "type": "string",
+            "title": "Level Name"
+          },
+          "discount_rate": {
+            "type": "string",
+            "title": "Discount Rate"
+          },
+          "total_spend": {
+            "type": "string",
+            "title": "Total Spend"
+          },
+          "gender": {
+            "title": "Gender",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "birth_date": {
+            "title": "Birth Date",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "height_cm": {
+            "title": "Height Cm",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "weight_kg": {
+            "title": "Weight Kg",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fitness_goal": {
+            "title": "Fitness Goal",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "member_id",
+          "user_id",
+          "level_id",
+          "level_code",
+          "level_name",
+          "discount_rate",
+          "total_spend",
+          "gender",
+          "birth_date",
+          "height_cm",
+          "weight_kg",
+          "fitness_goal"
+        ]
+      }
+order: 1000

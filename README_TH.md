@@ -35,6 +35,23 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
+หากติดตั้ง Python ผ่าน Python Launcher บน Windows:
+
+```powershell
+cd C:\Users\Lenovo\Desktop\bigOyeahBackend\bigOyeahBackend
+py -3 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+```
+
+ตรวจสอบ environment:
+
+```powershell
+python --version
+pytest -q
+ruff check app tests
+```
+
 คัดลอก environment file:
 
 ```powershell
@@ -47,6 +64,17 @@ Copy-Item .env.example .env
 DATABASE_URL=mysql+aiomysql://fitbooking_app:change_me@127.0.0.1:3306/fitbooking?charset=utf8mb4
 DDL_DATABASE_URL=mysql+aiomysql://fitbooking_ddl:change_me@127.0.0.1:3306/fitbooking?charset=utf8mb4
 ```
+
+สำหรับ Aiven MySQL ให้ดาวน์โหลด `ca.pem` จากหน้า Overview ของ service ใน Aiven Console
+แล้วกำหนดค่าการตรวจสอบ TLS โดยห้ามปิดการตรวจสอบ certificate หรือ hostname:
+
+```env
+DATABASE_SSL_REQUIRED=true
+DATABASE_SSL_CA=C:\path\to\aiven-ca.pem
+```
+
+เมื่อเปิดใช้ SSL แล้ว backend จะไม่เริ่มทำงานหากไม่พบไฟล์ CA เพื่อป้องกันการ
+เชื่อมต่อโดยใช้ certificate ที่ไม่ได้รับการตรวจสอบ
 
 ควรแยกสิทธิ์ database user:
 
@@ -65,6 +93,32 @@ mysql -u root -p < ..\triggers.sql
 `triggers.sql` มีคำสั่ง `DELIMITER` จึงไม่ควรส่งผ่าน JDBC statement แบบปกติใน DataGrip
 
 backend นี้ไม่เรียก `Base.metadata.create_all()` เพราะโครงสร้างฐานข้อมูลต้องตรงกับ SQL ที่จัดทำไว้แล้ว
+
+## Unified API response
+
+ทุก JSON response จะถูกห่อด้วย envelope เดียวกัน:
+
+```json
+{
+  "success": true,
+  "code": 200,
+  "message": "Success",
+  "data": {},
+  "errors": null,
+  "meta": null,
+  "requestId": "request-id",
+  "timestamp": "2026-01-01T00:00:00Z"
+}
+```
+
+ระบบรองรับ `X-Request-ID` จาก client หรือสร้าง UUID ใหม่ให้เอง และส่งค่าเดิมกลับ
+ใน response header พร้อมเก็บไว้ใน `request.state` และ `ContextVar`
+สำหรับใช้ใน service/logging. ตัวอย่าง endpoint สำหรับตรวจสอบ envelope:
+
+- `GET /api/v1/response-demo`
+- `POST /api/v1/response-demo`
+- `GET /api/v1/response-demo/http-error`
+- `GET /api/v1/response-demo/server-error`
 
 ## การรัน API
 

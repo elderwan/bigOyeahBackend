@@ -1,0 +1,130 @@
+$kind: http-request
+description: ""
+url: "{{baseUrl}}/api/v1/members/me"
+method: PATCH
+headers:
+  Content-Type: application/json
+  Accept: application/json
+body:
+  type: json
+  content: |-
+    {
+      "display_name": "string",
+      "email": "D43@e.otoz",
+      "phone": "string",
+      "gender": null,
+      "birth_date": "2018-01-22",
+      "height_cm": null,
+      "weight_kg": null,
+      "fitness_goal": "string"
+    }
+  $type: |-
+    {
+      "title": "MemberProfileUpdate",
+      "type": "object",
+      "properties": {
+        "display_name": {
+          "title": "Display Name",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "email": {
+          "title": "Email",
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "email"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "phone": {
+          "title": "Phone",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gender": {
+          "title": "Gender",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "birth_date": {
+          "title": "Birth Date",
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "height_cm": {
+          "title": "Height Cm",
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "weight_kg": {
+          "title": "Weight Kg",
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fitness_goal": {
+          "title": "Fitness Goal",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{bearerToken}}"
+settings: {}
+examples: ./.resources/Update Member Profile.resources/examples
+order: 2000

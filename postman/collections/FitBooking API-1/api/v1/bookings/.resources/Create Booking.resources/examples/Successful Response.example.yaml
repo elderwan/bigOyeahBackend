@@ -1,0 +1,254 @@
+$kind: http-example
+request:
+  url: "{{baseUrl}}/api/v1/bookings"
+  method: POST
+  headers:
+    Content-Type: application/json
+    Accept: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "member_id": 4034,
+        "coach_id": 4283,
+        "course_id": 6841,
+        "booking_date": "1997-11-05",
+        "start_time": "13:14:18.157Z",
+        "duration_minutes": 4770,
+        "break_minutes": 30,
+        "service_mode": "GYM",
+        "price": 1661.4013285682684,
+        "gym_id": 9942,
+        "package_id": null,
+        "service_district": "string",
+        "service_address": "string"
+      }
+response:
+  statusCode: 201
+  statusText: Created
+  headers:
+    Content-Type: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "booking_id": 6133,
+        "member_id": 1070,
+        "coach_id": 4760,
+        "course_id": 2916,
+        "gym_id": null,
+        "package_id": 5237,
+        "booking_date": "1984-01-13",
+        "start_time": "16:24:13.441Z",
+        "end_time": "07:44:12.092Z",
+        "duration_minutes": 188,
+        "break_minutes": 3722,
+        "service_mode": "string",
+        "service_district": null,
+        "service_address": null,
+        "price": "string",
+        "status": "string",
+        "expires_at": "2006-07-07T02:22:35.910Z",
+        "cancelled_by": "string",
+        "cancel_reason": "string",
+        "cancelled_at": null,
+        "completed_at": "2020-05-28T05:32:16.912Z",
+        "created_at": "2024-11-20T03:47:39.167Z",
+        "updated_at": "1977-12-09T14:34:22.938Z"
+      }
+    $type: |-
+      {
+        "title": "BookingResponse",
+        "type": "object",
+        "properties": {
+          "booking_id": {
+            "type": "integer",
+            "title": "Booking Id"
+          },
+          "member_id": {
+            "type": "integer",
+            "title": "Member Id"
+          },
+          "coach_id": {
+            "type": "integer",
+            "title": "Coach Id"
+          },
+          "course_id": {
+            "type": "integer",
+            "title": "Course Id"
+          },
+          "gym_id": {
+            "title": "Gym Id",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "package_id": {
+            "title": "Package Id",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "booking_date": {
+            "type": "string",
+            "title": "Booking Date",
+            "format": "date"
+          },
+          "start_time": {
+            "type": "string",
+            "title": "Start Time",
+            "format": "time"
+          },
+          "end_time": {
+            "type": "string",
+            "title": "End Time",
+            "format": "time"
+          },
+          "duration_minutes": {
+            "type": "integer",
+            "title": "Duration Minutes"
+          },
+          "break_minutes": {
+            "type": "integer",
+            "title": "Break Minutes"
+          },
+          "service_mode": {
+            "type": "string",
+            "title": "Service Mode"
+          },
+          "service_district": {
+            "title": "Service District",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "service_address": {
+            "title": "Service Address",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "price": {
+            "type": "string",
+            "title": "Price"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "expires_at": {
+            "title": "Expires At",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cancelled_by": {
+            "title": "Cancelled By",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cancel_reason": {
+            "title": "Cancel Reason",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cancelled_at": {
+            "title": "Cancelled At",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "completed_at": {
+            "title": "Completed At",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "booking_id",
+          "member_id",
+          "coach_id",
+          "course_id",
+          "gym_id",
+          "package_id",
+          "booking_date",
+          "start_time",
+          "end_time",
+          "duration_minutes",
+          "break_minutes",
+          "service_mode",
+          "service_district",
+          "service_address",
+          "price",
+          "status",
+          "expires_at",
+          "cancelled_by",
+          "cancel_reason",
+          "cancelled_at",
+          "completed_at",
+          "created_at",
+          "updated_at"
+        ]
+      }
+order: 1000

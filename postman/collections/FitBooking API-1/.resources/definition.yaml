@@ -1,0 +1,5 @@
+$kind: collection
+name: FitBooking API
+description: FitBooking personal training booking API.
+variables:
+  baseUrl: /

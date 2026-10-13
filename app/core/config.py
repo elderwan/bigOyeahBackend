@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     timezone: str = "Asia/Bangkok"
     cors_origins: list[str] = ["http://localhost:3000"]
     sql_echo: bool = False
+    database_ssl_required: bool = False
+    database_ssl_ca: str | None = None
+    auth_secret: str = "change-this-secret-in-production"
+    auth_token_ttl_minutes: int = 60 * 24
 
     model_config = SettingsConfigDict(
         env_file=".env",

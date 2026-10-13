@@ -1,0 +1,36 @@
+$kind: http-example
+request:
+  url: "{{baseUrl}}/api/v1/courses?difficulty=string"
+  method: GET
+  headers:
+    Accept: application/json
+  queryParams:
+    difficulty: string
+  body:
+    type: text
+    content: ""
+response:
+  statusCode: 200
+  statusText: OK
+  headers:
+    Content-Type: application/json
+  body:
+    type: json
+    content: |-
+      [
+        {
+          "key_0": 1374
+        },
+        {
+          "key_0": true
+        }
+      ]
+    $type: |-
+      {
+        "type": "array",
+        "title": "Response List Courses Api V1 Courses Get",
+        "items": {
+          "type": "object"
+        }
+      }
+order: 1000

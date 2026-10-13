@@ -1,0 +1,54 @@
+$kind: http-request
+description: ""
+url: "{{baseUrl}}/api/v1/members/me/bookings/:booking_id/cancel"
+method: POST
+headers:
+  Content-Type: application/json
+  Accept: application/json
+pathVariables:
+  - key: booking_id
+    value: "8694"
+    disabled: false
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "title": "Booking Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+body:
+  type: json
+  content: |-
+    {
+      "reason": "string"
+    }
+  $type: |-
+    {
+      "title": "BookingCancelRequest",
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "title": "Reason"
+        }
+      },
+      "required": [
+        "reason"
+      ]
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{bearerToken}}"
+settings: {}
+examples: ./.resources/Cancel My Booking.resources/examples
+order: 1000

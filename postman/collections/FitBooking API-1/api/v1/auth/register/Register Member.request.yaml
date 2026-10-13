@@ -1,0 +1,64 @@
+$kind: http-request
+description: ""
+url: "{{baseUrl}}/api/v1/auth/register"
+method: POST
+headers:
+  Content-Type: application/json
+  Accept: application/json
+body:
+  type: json
+  content: |-
+    {
+      "username": "mLyoZbo2lP",
+      "password": "stringstring",
+      "display_name": "string",
+      "email": "LKgiuVE@YRlhYLqmsZtuFuvs.wi",
+      "phone": "string"
+    }
+  $type: |-
+    {
+      "title": "MemberRegisterRequest",
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 50,
+          "pattern": "^[A-Za-z0-9_.-]+$",
+          "title": "Username"
+        },
+        "password": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 128,
+          "title": "Password"
+        },
+        "display_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "title": "Display Name"
+        },
+        "email": {
+          "type": "string",
+          "title": "Email",
+          "format": "email"
+        },
+        "phone": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 20,
+          "title": "Phone"
+        }
+      },
+      "required": [
+        "username",
+        "password",
+        "display_name",
+        "email",
+        "phone"
+      ]
+    }
+settings: {}
+examples: ./.resources/Register Member.resources/examples
+order: 1000

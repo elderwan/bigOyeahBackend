@@ -1,0 +1,139 @@
+$kind: http-example
+request:
+  url: "{{baseUrl}}/api/v1/coaches/:coach_id"
+  method: GET
+  headers:
+    Accept: application/json
+  pathVariables:
+    coach_id: "1949"
+  body:
+    type: text
+    content: ""
+response:
+  statusCode: 200
+  statusText: OK
+  headers:
+    Content-Type: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "coach_id": 6218,
+        "coach_no": "string",
+        "user_id": 284,
+        "coach_level": "string",
+        "bio": "string",
+        "service_mode": "string",
+        "break_interval": 7717,
+        "years_experience": null,
+        "certifications": null,
+        "avatar_url": null,
+        "status": "string",
+        "hired_at": null
+      }
+    $type: |-
+      {
+        "title": "CoachSummary",
+        "type": "object",
+        "properties": {
+          "coach_id": {
+            "type": "integer",
+            "title": "Coach Id"
+          },
+          "coach_no": {
+            "type": "string",
+            "title": "Coach No"
+          },
+          "user_id": {
+            "type": "integer",
+            "title": "User Id"
+          },
+          "coach_level": {
+            "type": "string",
+            "title": "Coach Level"
+          },
+          "bio": {
+            "title": "Bio",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "service_mode": {
+            "type": "string",
+            "title": "Service Mode"
+          },
+          "break_interval": {
+            "type": "integer",
+            "title": "Break Interval"
+          },
+          "years_experience": {
+            "title": "Years Experience",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "certifications": {
+            "title": "Certifications",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "avatar_url": {
+            "title": "Avatar Url",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "hired_at": {
+            "title": "Hired At",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "coach_id",
+          "coach_no",
+          "user_id",
+          "coach_level",
+          "bio",
+          "service_mode",
+          "break_interval",
+          "years_experience",
+          "certifications",
+          "avatar_url",
+          "status",
+          "hired_at"
+        ]
+      }
+order: 1000

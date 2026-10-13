@@ -1,0 +1,144 @@
+$kind: http-request
+description: ""
+url: "{{baseUrl}}/api/v1/bookings"
+method: POST
+headers:
+  Content-Type: application/json
+  Accept: application/json
+body:
+  type: json
+  content: |-
+    {
+      "member_id": 4034,
+      "coach_id": 4283,
+      "course_id": 6841,
+      "booking_date": "1997-11-05",
+      "start_time": "13:14:18.157Z",
+      "duration_minutes": 4770,
+      "break_minutes": 30,
+      "service_mode": "GYM",
+      "price": 1661.4013285682684,
+      "gym_id": 9942,
+      "package_id": null,
+      "service_district": "string",
+      "service_address": "string"
+    }
+  $type: |-
+    {
+      "title": "BookingCreateRequest",
+      "type": "object",
+      "properties": {
+        "member_id": {
+          "type": "integer",
+          "title": "Member Id"
+        },
+        "coach_id": {
+          "type": "integer",
+          "title": "Coach Id"
+        },
+        "course_id": {
+          "type": "integer",
+          "title": "Course Id"
+        },
+        "gym_id": {
+          "title": "Gym Id",
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "package_id": {
+          "title": "Package Id",
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "booking_date": {
+          "type": "string",
+          "title": "Booking Date",
+          "format": "date"
+        },
+        "start_time": {
+          "type": "string",
+          "title": "Start Time",
+          "format": "time"
+        },
+        "duration_minutes": {
+          "type": "integer",
+          "title": "Duration Minutes"
+        },
+        "break_minutes": {
+          "type": "integer",
+          "enum": [
+            10,
+            20,
+            30
+          ],
+          "title": "Break Minutes"
+        },
+        "service_mode": {
+          "type": "string",
+          "enum": [
+            "GYM",
+            "HOME"
+          ],
+          "title": "Service Mode"
+        },
+        "service_district": {
+          "title": "Service District",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "service_address": {
+          "title": "Service Address",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "price": {
+          "title": "Price",
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "required": [
+        "member_id",
+        "coach_id",
+        "course_id",
+        "booking_date",
+        "start_time",
+        "duration_minutes",
+        "break_minutes",
+        "service_mode",
+        "price"
+      ]
+    }
+settings: {}
+examples: ./.resources/Create Booking.resources/examples
+order: 1000

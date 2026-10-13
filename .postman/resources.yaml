@@ -1,0 +1,8 @@
+workspace:
+  id: 88fa299d-3bf4-41e1-8503-5520177b1705
+localResources:
+  specs:
+    - ../postman/specs/FitBooking API/index.json
+resourceNameMappings:
+  specs:
+    - ../postman/specs/FitBooking API/index.json: FitBooking API

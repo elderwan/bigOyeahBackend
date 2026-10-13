@@ -1,0 +1,80 @@
+$kind: http-request
+description: ""
+url: "{{baseUrl}}/api/v1/members/me/progress"
+method: PUT
+headers:
+  Content-Type: application/json
+  Accept: application/json
+body:
+  type: json
+  content: |-
+    {
+      "strongest_area": null,
+      "weakest_area": null,
+      "strongest_score": 4.608791477135167,
+      "weakest_score": 4.917695247370016
+    }
+  $type: |-
+    {
+      "title": "FitnessProfileUpdate",
+      "type": "object",
+      "properties": {
+        "strongest_area": {
+          "title": "Strongest Area",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "weakest_area": {
+          "title": "Weakest Area",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "strongest_score": {
+          "title": "Strongest Score",
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "weakest_score": {
+          "title": "Weakest Score",
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{bearerToken}}"
+settings: {}
+examples: ./.resources/Update Progress.resources/examples
+order: 2000

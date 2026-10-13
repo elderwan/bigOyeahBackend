@@ -1,0 +1,50 @@
+$kind: http-request
+description: ""
+url: "{{baseUrl}}/api/v1/members/me/packages/purchase"
+method: POST
+headers:
+  Content-Type: application/json
+  Accept: application/json
+body:
+  type: json
+  content: |-
+    {
+      "package_type": "20+7",
+      "payment_method": "PROMPTPAY"
+    }
+  $type: |-
+    {
+      "title": "PackagePurchaseRequest",
+      "type": "object",
+      "properties": {
+        "package_type": {
+          "type": "string",
+          "enum": [
+            "5+1",
+            "10+3",
+            "20+7"
+          ],
+          "title": "Package Type"
+        },
+        "payment_method": {
+          "type": "string",
+          "enum": [
+            "PROMPTPAY",
+            "CARD",
+            "CASH"
+          ],
+          "title": "Payment Method"
+        }
+      },
+      "required": [
+        "package_type",
+        "payment_method"
+      ]
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{bearerToken}}"
+settings: {}
+examples: ./.resources/Purchase Package.resources/examples
+order: 1000

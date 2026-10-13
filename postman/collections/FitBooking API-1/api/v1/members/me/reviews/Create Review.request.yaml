@@ -1,0 +1,78 @@
+$kind: http-request
+description: ""
+url: "{{baseUrl}}/api/v1/members/me/reviews"
+method: POST
+headers:
+  Content-Type: application/json
+  Accept: application/json
+body:
+  type: json
+  content: |-
+    {
+      "booking_id": 8074,
+      "rating_professional": 3,
+      "rating_communication": 1,
+      "rating_punctuality": 2,
+      "rating_effectiveness": 3,
+      "comment": "string"
+    }
+  $type: |-
+    {
+      "title": "ReviewCreateRequest",
+      "type": "object",
+      "properties": {
+        "booking_id": {
+          "type": "integer",
+          "title": "Booking Id"
+        },
+        "rating_professional": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5,
+          "title": "Rating Professional"
+        },
+        "rating_communication": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5,
+          "title": "Rating Communication"
+        },
+        "rating_punctuality": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5,
+          "title": "Rating Punctuality"
+        },
+        "rating_effectiveness": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5,
+          "title": "Rating Effectiveness"
+        },
+        "comment": {
+          "title": "Comment",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "booking_id",
+        "rating_professional",
+        "rating_communication",
+        "rating_punctuality",
+        "rating_effectiveness"
+      ]
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{bearerToken}}"
+settings: {}
+examples: ./.resources/Create Review.resources/examples
+order: 2000

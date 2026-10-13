@@ -1,0 +1,37 @@
+$kind: http-request
+description: ""
+url: "{{baseUrl}}/api/v1/coaches?search=string&district=string&course_id=1864"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  - key: search
+    value: string
+    disabled: false
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "maxLength": 100
+          }
+        }
+      }
+  - key: district
+    value: string
+    disabled: false
+    description: ""
+    $type: string
+  - key: course_id
+    value: "1864"
+    disabled: false
+    description: ""
+    $type: integer
+body:
+  type: text
+  content: ""
+settings: {}
+examples: ./.resources/List Coaches.resources/examples
+order: 3000

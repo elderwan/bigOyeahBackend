@@ -1,0 +1,41 @@
+$kind: http-example
+request:
+  url: "{{baseUrl}}/api/v1/members/me/reviews"
+  method: POST
+  headers:
+    - key: Content-Type
+      value: application/json
+    - key: Accept
+      value: application/json
+    - key: Authorization
+      value: Bearer <token>
+      description: "Added as a part of security scheme: bearer"
+  body:
+    type: json
+    content: |-
+      {
+        "booking_id": 8074,
+        "rating_professional": 3,
+        "rating_communication": 1,
+        "rating_punctuality": 2,
+        "rating_effectiveness": 3,
+        "comment": "string"
+      }
+response:
+  statusCode: 201
+  statusText: Created
+  headers:
+    Content-Type: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "key_0": 5262.98760108048,
+        "key_1": 5491
+      }
+    $type: |-
+      {
+        "title": "Response Create Review Api V1 Members Me Reviews Post",
+        "type": "object"
+      }
+order: 1000

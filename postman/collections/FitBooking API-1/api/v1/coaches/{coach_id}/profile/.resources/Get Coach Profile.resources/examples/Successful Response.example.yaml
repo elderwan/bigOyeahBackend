@@ -1,0 +1,211 @@
+$kind: http-example
+request:
+  url: "{{baseUrl}}/api/v1/coaches/:coach_id/profile"
+  method: GET
+  headers:
+    Accept: application/json
+  pathVariables:
+    coach_id: "1949"
+  body:
+    type: text
+    content: ""
+response:
+  statusCode: 200
+  statusText: OK
+  headers:
+    Content-Type: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "coach_id": 4771,
+        "coach_no": "string",
+        "display_name": "string",
+        "avatar_url": "string",
+        "coach_level": "string",
+        "bio": null,
+        "service_mode": "string",
+        "years_experience": 8779,
+        "average_rating": "string",
+        "review_count": 5213,
+        "user_id": 693,
+        "email": "string",
+        "phone": "string",
+        "certifications": null,
+        "break_interval": 7806,
+        "status": "string",
+        "hired_at": null,
+        "courses": [
+          {
+            "key_0": 5338,
+            "key_1": "string",
+            "key_2": true
+          },
+          {
+            "key_0": "string",
+            "key_1": "string"
+          }
+        ],
+        "gyms": [
+          {
+            "key_0": false
+          },
+          {
+            "key_0": false
+          }
+        ]
+      }
+    $type: |-
+      {
+        "title": "CoachProfileResponse",
+        "type": "object",
+        "properties": {
+          "coach_id": {
+            "type": "integer",
+            "title": "Coach Id"
+          },
+          "coach_no": {
+            "type": "string",
+            "title": "Coach No"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "avatar_url": {
+            "title": "Avatar Url",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "coach_level": {
+            "type": "string",
+            "title": "Coach Level"
+          },
+          "bio": {
+            "title": "Bio",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "service_mode": {
+            "type": "string",
+            "title": "Service Mode"
+          },
+          "years_experience": {
+            "title": "Years Experience",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "average_rating": {
+            "title": "Average Rating",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "review_count": {
+            "type": "integer",
+            "title": "Review Count"
+          },
+          "user_id": {
+            "type": "integer",
+            "title": "User Id"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "certifications": {
+            "title": "Certifications",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "break_interval": {
+            "type": "integer",
+            "title": "Break Interval"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "hired_at": {
+            "title": "Hired At",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "courses": {
+            "type": "array",
+            "title": "Courses",
+            "items": {
+              "type": "object"
+            }
+          },
+          "gyms": {
+            "type": "array",
+            "title": "Gyms",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "coach_id",
+          "coach_no",
+          "display_name",
+          "avatar_url",
+          "coach_level",
+          "bio",
+          "service_mode",
+          "years_experience",
+          "average_rating",
+          "review_count",
+          "user_id",
+          "email",
+          "phone",
+          "certifications",
+          "break_interval",
+          "status",
+          "hired_at",
+          "courses",
+          "gyms"
+        ]
+      }
+order: 1000

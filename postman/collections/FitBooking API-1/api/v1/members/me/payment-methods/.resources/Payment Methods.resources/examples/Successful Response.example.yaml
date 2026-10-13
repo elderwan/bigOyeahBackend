@@ -1,0 +1,38 @@
+$kind: http-example
+request:
+  url: "{{baseUrl}}/api/v1/members/me/payment-methods"
+  method: GET
+  headers:
+    - key: Accept
+      value: application/json
+    - key: Authorization
+      value: Bearer <token>
+      description: "Added as a part of security scheme: bearer"
+  body:
+    type: text
+    content: ""
+response:
+  statusCode: 200
+  statusText: OK
+  headers:
+    Content-Type: application/json
+  body:
+    type: json
+    content: |-
+      [
+        {
+          "key_0": 6670
+        },
+        {
+          "key_0": 9916.46128507955
+        }
+      ]
+    $type: |-
+      {
+        "type": "array",
+        "title": "Response Payment Methods Api V1 Members Me Payment Methods Get",
+        "items": {
+          "type": "object"
+        }
+      }
+order: 1000

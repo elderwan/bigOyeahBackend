@@ -1,0 +1,29 @@
+$kind: http-example
+request:
+  url: "{{baseUrl}}/api/v1/courses/:course_id"
+  method: GET
+  headers:
+    Accept: application/json
+  pathVariables:
+    course_id: "2028"
+  body:
+    type: text
+    content: ""
+response:
+  statusCode: 200
+  statusText: OK
+  headers:
+    Content-Type: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "key_0": 4486.769519232125,
+        "key_1": "string"
+      }
+    $type: |-
+      {
+        "title": "Response Get Course Api V1 Courses  Course Id  Get",
+        "type": "object"
+      }
+order: 1000

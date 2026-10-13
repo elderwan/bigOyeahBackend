@@ -1,0 +1,122 @@
+$kind: http-request
+description: ""
+url: "{{baseUrl}}/api/v1/coaches/me"
+method: PATCH
+headers:
+  Content-Type: application/json
+  Accept: application/json
+body:
+  type: json
+  content: |-
+    {
+      "display_name": null,
+      "email": "string",
+      "phone": null,
+      "bio": null,
+      "service_mode": null,
+      "years_experience": null,
+      "certifications": "string",
+      "avatar_url": "string"
+    }
+  $type: |-
+    {
+      "title": "CoachProfileUpdate",
+      "type": "object",
+      "properties": {
+        "display_name": {
+          "title": "Display Name",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "email": {
+          "title": "Email",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "phone": {
+          "title": "Phone",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "bio": {
+          "title": "Bio",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "service_mode": {
+          "title": "Service Mode",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "years_experience": {
+          "title": "Years Experience",
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "certifications": {
+          "title": "Certifications",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "avatar_url": {
+          "title": "Avatar Url",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{bearerToken}}"
+settings: {}
+examples: ./.resources/Update My Coach Profile Route.resources/examples
+order: 1000

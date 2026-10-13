@@ -1,0 +1,139 @@
+$kind: http-example
+request:
+  url: "{{baseUrl}}/api/v1/coaches?search=string&district=string&course_id=1864"
+  method: GET
+  headers:
+    Accept: application/json
+  queryParams:
+    search: string
+    district: string
+    course_id: "1864"
+  body:
+    type: text
+    content: ""
+response:
+  statusCode: 200
+  statusText: OK
+  headers:
+    Content-Type: application/json
+  body:
+    type: json
+    content: |-
+      [
+        {
+          "coach_id": 4104,
+          "coach_no": "string",
+          "display_name": "string",
+          "avatar_url": "string",
+          "coach_level": "string",
+          "bio": "string",
+          "service_mode": "string",
+          "years_experience": 9379,
+          "average_rating": "string",
+          "review_count": 1521
+        },
+        {
+          "coach_id": 7493,
+          "coach_no": "string",
+          "display_name": "string",
+          "avatar_url": "string",
+          "coach_level": "string",
+          "bio": "string",
+          "service_mode": "string",
+          "years_experience": 5939,
+          "average_rating": "string",
+          "review_count": 9551
+        }
+      ]
+    $type: |-
+      {
+        "type": "array",
+        "title": "Response List Coaches Api V1 Coaches Get",
+        "items": {
+          "title": "CoachListItem",
+          "type": "object",
+          "properties": {
+            "coach_id": {
+              "type": "integer",
+              "title": "Coach Id"
+            },
+            "coach_no": {
+              "type": "string",
+              "title": "Coach No"
+            },
+            "display_name": {
+              "type": "string",
+              "title": "Display Name"
+            },
+            "avatar_url": {
+              "title": "Avatar Url",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "coach_level": {
+              "type": "string",
+              "title": "Coach Level"
+            },
+            "bio": {
+              "title": "Bio",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "service_mode": {
+              "type": "string",
+              "title": "Service Mode"
+            },
+            "years_experience": {
+              "title": "Years Experience",
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "average_rating": {
+              "title": "Average Rating",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "review_count": {
+              "type": "integer",
+              "title": "Review Count"
+            }
+          },
+          "required": [
+            "coach_id",
+            "coach_no",
+            "display_name",
+            "avatar_url",
+            "coach_level",
+            "bio",
+            "service_mode",
+            "years_experience",
+            "average_rating",
+            "review_count"
+          ]
+        }
+      }
+order: 1000

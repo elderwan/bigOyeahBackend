@@ -1,0 +1,43 @@
+$kind: http-example
+request:
+  url: "{{baseUrl}}/api/v1/coaches/:coach_id/schedule"
+  method: POST
+  headers:
+    Accept: application/json
+  pathVariables:
+    coach_id: "1949"
+  body:
+    type: text
+    content: ""
+response:
+  statusCode: 201
+  statusText: Created
+  headers:
+    Content-Type: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "coach_id": 9539,
+        "table_name": "string"
+      }
+    $type: |-
+      {
+        "title": "ScheduleCreateResponse",
+        "type": "object",
+        "properties": {
+          "coach_id": {
+            "type": "integer",
+            "title": "Coach Id"
+          },
+          "table_name": {
+            "type": "string",
+            "title": "Table Name"
+          }
+        },
+        "required": [
+          "coach_id",
+          "table_name"
+        ]
+      }
+order: 1000

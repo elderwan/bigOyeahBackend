@@ -1,0 +1,136 @@
+$kind: http-example
+request:
+  url: "{{baseUrl}}/api/v1/coaches/:coach_id/schedule/slots?start_at=1994-11-25T20:05:22.880Z&end_at=1968-07-25T22:37:56.269Z"
+  method: GET
+  headers:
+    Accept: application/json
+  queryParams:
+    start_at: 1994-11-25T20:05:22.880Z
+    end_at: 1968-07-25T22:37:56.269Z
+  pathVariables:
+    coach_id: "1949"
+  body:
+    type: text
+    content: ""
+response:
+  statusCode: 200
+  statusText: OK
+  headers:
+    Content-Type: application/json
+  body:
+    type: json
+    content: |-
+      [
+        {
+          "slot_start": "2010-10-21T06:43:15.306Z",
+          "slot_year": 7426,
+          "slot_month": 8357,
+          "slot_day": 2318,
+          "slot_hour": 5168,
+          "slot_minute": 9439,
+          "status": "string",
+          "booking_id": 5524,
+          "remark": "string",
+          "created_at": "2018-01-04T18:06:13.158Z",
+          "updated_at": "1948-10-19T03:08:14.874Z"
+        },
+        {
+          "slot_start": "2005-12-11T01:43:54.460Z",
+          "slot_year": 4997,
+          "slot_month": 3123,
+          "slot_day": 2701,
+          "slot_hour": 1288,
+          "slot_minute": 5976,
+          "status": "string",
+          "booking_id": 7082,
+          "remark": "string",
+          "created_at": "2008-07-08T20:29:41.754Z",
+          "updated_at": "1994-02-04T12:41:28.219Z"
+        }
+      ]
+    $type: |-
+      {
+        "type": "array",
+        "title": "Response List Schedule Slots Api V1 Coaches  Coach Id  Schedule Slots Get",
+        "items": {
+          "title": "ScheduleSlot",
+          "type": "object",
+          "properties": {
+            "slot_start": {
+              "type": "string",
+              "title": "Slot Start",
+              "format": "date-time"
+            },
+            "slot_year": {
+              "type": "integer",
+              "title": "Slot Year"
+            },
+            "slot_month": {
+              "type": "integer",
+              "title": "Slot Month"
+            },
+            "slot_day": {
+              "type": "integer",
+              "title": "Slot Day"
+            },
+            "slot_hour": {
+              "type": "integer",
+              "title": "Slot Hour"
+            },
+            "slot_minute": {
+              "type": "integer",
+              "title": "Slot Minute"
+            },
+            "status": {
+              "type": "string",
+              "title": "Status"
+            },
+            "booking_id": {
+              "title": "Booking Id",
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "remark": {
+              "title": "Remark",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "created_at": {
+              "type": "string",
+              "title": "Created At",
+              "format": "date-time"
+            },
+            "updated_at": {
+              "type": "string",
+              "title": "Updated At",
+              "format": "date-time"
+            }
+          },
+          "required": [
+            "slot_start",
+            "slot_year",
+            "slot_month",
+            "slot_day",
+            "slot_hour",
+            "slot_minute",
+            "status",
+            "booking_id",
+            "remark",
+            "created_at",
+            "updated_at"
+          ]
+        }
+      }
+order: 1000

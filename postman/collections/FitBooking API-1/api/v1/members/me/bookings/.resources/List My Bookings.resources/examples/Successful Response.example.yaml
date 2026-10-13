@@ -1,0 +1,41 @@
+$kind: http-example
+request:
+  url: "{{baseUrl}}/api/v1/members/me/bookings?status=string"
+  method: GET
+  headers:
+    - key: Accept
+      value: application/json
+    - key: Authorization
+      value: Bearer <token>
+      description: "Added as a part of security scheme: bearer"
+  queryParams:
+    status: string
+  body:
+    type: text
+    content: ""
+response:
+  statusCode: 200
+  statusText: OK
+  headers:
+    Content-Type: application/json
+  body:
+    type: json
+    content: |-
+      [
+        {
+          "key_0": true,
+          "key_1": 5984.712940844408
+        },
+        {
+          "key_0": 4841.304502082036
+        }
+      ]
+    $type: |-
+      {
+        "type": "array",
+        "title": "Response List My Bookings Api V1 Members Me Bookings Get",
+        "items": {
+          "type": "object"
+        }
+      }
+order: 1000

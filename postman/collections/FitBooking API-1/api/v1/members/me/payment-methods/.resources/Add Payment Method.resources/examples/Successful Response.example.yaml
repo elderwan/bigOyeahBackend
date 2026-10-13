@@ -1,0 +1,38 @@
+$kind: http-example
+request:
+  url: "{{baseUrl}}/api/v1/members/me/payment-methods"
+  method: POST
+  headers:
+    - key: Content-Type
+      value: application/json
+    - key: Accept
+      value: application/json
+    - key: Authorization
+      value: Bearer <token>
+      description: "Added as a part of security scheme: bearer"
+  body:
+    type: json
+    content: |-
+      {
+        "payment_method": "PROMPTPAY",
+        "label": "string"
+      }
+response:
+  statusCode: 201
+  statusText: Created
+  headers:
+    Content-Type: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "key_0": true,
+        "key_1": 8726,
+        "key_2": true
+      }
+    $type: |-
+      {
+        "title": "Response Add Payment Method Api V1 Members Me Payment Methods Post",
+        "type": "object"
+      }
+order: 1000

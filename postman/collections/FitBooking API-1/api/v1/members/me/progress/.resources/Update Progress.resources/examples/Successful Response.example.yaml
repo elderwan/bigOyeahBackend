@@ -1,0 +1,39 @@
+$kind: http-example
+request:
+  url: "{{baseUrl}}/api/v1/members/me/progress"
+  method: PUT
+  headers:
+    - key: Content-Type
+      value: application/json
+    - key: Accept
+      value: application/json
+    - key: Authorization
+      value: Bearer <token>
+      description: "Added as a part of security scheme: bearer"
+  body:
+    type: json
+    content: |-
+      {
+        "strongest_area": null,
+        "weakest_area": null,
+        "strongest_score": 4.608791477135167,
+        "weakest_score": 4.917695247370016
+      }
+response:
+  statusCode: 200
+  statusText: OK
+  headers:
+    Content-Type: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "key_0": 470.0754353918124,
+        "key_1": "string"
+      }
+    $type: |-
+      {
+        "title": "Response Update Progress Api V1 Members Me Progress Put",
+        "type": "object"
+      }
+order: 1000

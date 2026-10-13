@@ -1,0 +1,22 @@
+$kind: http-request
+description: ""
+url: "{{baseUrl}}/api/v1/members/me/bookings?status=string"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  - key: status
+    value: string
+    disabled: false
+    description: ""
+    $type: string
+body:
+  type: text
+  content: ""
+auth:
+  type: bearer
+  credentials:
+    token: "{{bearerToken}}"
+settings: {}
+examples: ./.resources/List My Bookings.resources/examples
+order: 1000

@@ -1,0 +1,30 @@
+$kind: http-request
+description: ""
+url: "{{baseUrl}}/api/v1/coaches/:coach_id/services"
+method: GET
+headers:
+  Accept: application/json
+pathVariables:
+  - key: coach_id
+    value: "1949"
+    disabled: false
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "title": "Coach Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+body:
+  type: text
+  content: ""
+settings: {}
+examples: ./.resources/List Coach Services.resources/examples
+order: 1000

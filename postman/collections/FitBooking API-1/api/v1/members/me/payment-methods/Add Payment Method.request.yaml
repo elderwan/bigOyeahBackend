@@ -1,0 +1,47 @@
+$kind: http-request
+description: ""
+url: "{{baseUrl}}/api/v1/members/me/payment-methods"
+method: POST
+headers:
+  Content-Type: application/json
+  Accept: application/json
+body:
+  type: json
+  content: |-
+    {
+      "payment_method": "PROMPTPAY",
+      "label": "string"
+    }
+  $type: |-
+    {
+      "title": "PaymentMethodUpdate",
+      "type": "object",
+      "properties": {
+        "payment_method": {
+          "type": "string",
+          "enum": [
+            "PROMPTPAY",
+            "CARD",
+            "CASH"
+          ],
+          "title": "Payment Method"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "title": "Label"
+        }
+      },
+      "required": [
+        "payment_method",
+        "label"
+      ]
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{bearerToken}}"
+settings: {}
+examples: ./.resources/Add Payment Method.resources/examples
+order: 2000

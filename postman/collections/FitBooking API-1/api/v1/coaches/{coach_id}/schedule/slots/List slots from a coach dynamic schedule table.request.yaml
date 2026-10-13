@@ -1,0 +1,67 @@
+$kind: http-request
+description: ""
+url: "{{baseUrl}}/api/v1/coaches/:coach_id/schedule/slots?start_at=1994-11-25T20:05:22.880Z&end_at=1968-07-25T22:37:56.269Z"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  - key: start_at
+    value: 1994-11-25T20:05:22.880Z
+    disabled: false
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "title": "Start At",
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+  - key: end_at
+    value: 1968-07-25T22:37:56.269Z
+    disabled: false
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "title": "End At",
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+pathVariables:
+  - key: coach_id
+    value: "1949"
+    disabled: false
+    description: ""
+    $type: |-
+      {
+        "type": "object",
+        "properties": {
+          "value": {
+            "title": "Coach Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      }
+body:
+  type: text
+  content: ""
+settings: {}
+examples: ./.resources/List slots from a coach dynamic schedule table.resources/examples
+order: 1000

@@ -1,0 +1,186 @@
+$kind: http-example
+request:
+  url: "{{baseUrl}}/api/v1/members/me/dashboard"
+  method: GET
+  headers:
+    - key: Accept
+      value: application/json
+    - key: Authorization
+      value: Bearer <token>
+      description: "Added as a part of security scheme: bearer"
+  body:
+    type: text
+    content: ""
+response:
+  statusCode: 200
+  statusText: OK
+  headers:
+    Content-Type: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "profile": {
+          "member_id": 4414,
+          "user_id": 6504,
+          "level_id": 1522,
+          "level_code": "string",
+          "level_name": "string",
+          "discount_rate": "string",
+          "total_spend": "string",
+          "gender": null,
+          "birth_date": null,
+          "height_cm": null,
+          "weight_kg": null,
+          "fitness_goal": null
+        },
+        "upcoming_bookings": [
+          {
+            "key_0": false,
+            "key_1": 2926.853926293459
+          },
+          {
+            "key_0": 4347,
+            "key_1": true
+          }
+        ],
+        "active_packages": [
+          {
+            "key_0": 9224.072739528247
+          },
+          {
+            "key_0": "string"
+          }
+        ]
+      }
+    $type: |-
+      {
+        "title": "MemberDashboardResponse",
+        "type": "object",
+        "properties": {
+          "profile": {
+            "type": "object",
+            "title": "MemberProfileResponse",
+            "properties": {
+              "member_id": {
+                "type": "integer",
+                "title": "Member Id"
+              },
+              "user_id": {
+                "type": "integer",
+                "title": "User Id"
+              },
+              "level_id": {
+                "type": "integer",
+                "title": "Level Id"
+              },
+              "level_code": {
+                "type": "string",
+                "title": "Level Code"
+              },
+              "level_name": {
+                "type": "string",
+                "title": "Level Name"
+              },
+              "discount_rate": {
+                "type": "string",
+                "title": "Discount Rate"
+              },
+              "total_spend": {
+                "type": "string",
+                "title": "Total Spend"
+              },
+              "gender": {
+                "title": "Gender",
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "birth_date": {
+                "title": "Birth Date",
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "height_cm": {
+                "title": "Height Cm",
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "weight_kg": {
+                "title": "Weight Kg",
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "fitness_goal": {
+                "title": "Fitness Goal",
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "member_id",
+              "user_id",
+              "level_id",
+              "level_code",
+              "level_name",
+              "discount_rate",
+              "total_spend",
+              "gender",
+              "birth_date",
+              "height_cm",
+              "weight_kg",
+              "fitness_goal"
+            ]
+          },
+          "upcoming_bookings": {
+            "type": "array",
+            "title": "Upcoming Bookings",
+            "items": {
+              "type": "object"
+            }
+          },
+          "active_packages": {
+            "type": "array",
+            "title": "Active Packages",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "profile",
+          "upcoming_bookings",
+          "active_packages"
+        ]
+      }
+order: 1000

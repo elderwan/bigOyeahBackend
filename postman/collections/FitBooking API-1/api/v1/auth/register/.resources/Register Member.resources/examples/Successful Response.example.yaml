@@ -1,0 +1,129 @@
+$kind: http-example
+request:
+  url: "{{baseUrl}}/api/v1/auth/register"
+  method: POST
+  headers:
+    Content-Type: application/json
+    Accept: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "username": "mLyoZbo2lP",
+        "password": "stringstring",
+        "display_name": "string",
+        "email": "LKgiuVE@YRlhYLqmsZtuFuvs.wi",
+        "phone": "string"
+      }
+response:
+  statusCode: 201
+  statusText: Created
+  headers:
+    Content-Type: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "access_token": "string",
+        "user": {
+          "user_id": 6192,
+          "username": "string",
+          "display_name": "string",
+          "email": "string",
+          "phone": "string",
+          "role": "string",
+          "status": "string",
+          "last_login_at": "1980-09-25T18:20:50.537Z",
+          "created_at": "1955-07-13T18:24:38.177Z",
+          "updated_at": "2025-05-05T12:56:29.672Z"
+        },
+        "token_type": "bearer"
+      }
+    $type: |-
+      {
+        "title": "AuthResponse",
+        "type": "object",
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type"
+          },
+          "user": {
+            "type": "object",
+            "title": "UserResponse",
+            "properties": {
+              "user_id": {
+                "type": "integer",
+                "title": "User Id"
+              },
+              "username": {
+                "type": "string",
+                "title": "Username"
+              },
+              "display_name": {
+                "type": "string",
+                "title": "Display Name"
+              },
+              "email": {
+                "type": "string",
+                "title": "Email"
+              },
+              "phone": {
+                "type": "string",
+                "title": "Phone"
+              },
+              "role": {
+                "type": "string",
+                "title": "Role"
+              },
+              "status": {
+                "type": "string",
+                "title": "Status"
+              },
+              "last_login_at": {
+                "title": "Last Login At",
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "created_at": {
+                "type": "string",
+                "title": "Created At",
+                "format": "date-time"
+              },
+              "updated_at": {
+                "type": "string",
+                "title": "Updated At",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "user_id",
+              "username",
+              "display_name",
+              "email",
+              "phone",
+              "role",
+              "status",
+              "last_login_at",
+              "created_at",
+              "updated_at"
+            ]
+          }
+        },
+        "required": [
+          "access_token",
+          "user"
+        ]
+      }
+order: 1000

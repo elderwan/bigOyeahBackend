@@ -1,0 +1,18 @@
+$kind: http-request
+description: ""
+url: "{{baseUrl}}/api/v1/gyms?district=string"
+method: GET
+headers:
+  Accept: application/json
+queryParams:
+  - key: district
+    value: string
+    disabled: false
+    description: ""
+    $type: string
+body:
+  type: text
+  content: ""
+settings: {}
+examples: ./.resources/List Gyms.resources/examples
+order: 1000

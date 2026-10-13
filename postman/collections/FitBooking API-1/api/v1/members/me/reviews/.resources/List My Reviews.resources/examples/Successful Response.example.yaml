@@ -1,0 +1,43 @@
+$kind: http-example
+request:
+  url: "{{baseUrl}}/api/v1/members/me/reviews"
+  method: GET
+  headers:
+    - key: Accept
+      value: application/json
+    - key: Authorization
+      value: Bearer <token>
+      description: "Added as a part of security scheme: bearer"
+  body:
+    type: text
+    content: ""
+response:
+  statusCode: 200
+  statusText: OK
+  headers:
+    Content-Type: application/json
+  body:
+    type: json
+    content: |-
+      [
+        {
+          "key_0": 4629.258144115785,
+          "key_1": 9222.348742763956,
+          "key_2": 1560
+        },
+        {
+          "key_0": 21,
+          "key_1": 2537,
+          "key_2": "string",
+          "key_3": "string"
+        }
+      ]
+    $type: |-
+      {
+        "type": "array",
+        "title": "Response List My Reviews Api V1 Members Me Reviews Get",
+        "items": {
+          "type": "object"
+        }
+      }
+order: 1000
