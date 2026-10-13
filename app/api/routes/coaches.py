@@ -15,6 +15,23 @@ from app.schemas.coaches import CoachSummary
 router = APIRouter()
 
 
+@router.get("/me", response_model=CoachProfileResponse)
+async def get_my_coach_profile_route(
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_app_db),
+) -> CoachProfileResponse:
+    if user["role"] != "COACH":
+        raise HTTPException(status_code=403, detail="Coach access required")
+    result = await db.execute(
+        text("SELECT coach_id FROM coach WHERE user_id = :user_id"),
+        {"user_id": user["user_id"]},
+    )
+    coach_id = result.scalar_one_or_none()
+    if coach_id is None:
+        raise HTTPException(status_code=404, detail="Coach profile not found")
+    return await get_coach_profile(int(coach_id), db)
+
+
 @router.patch("/me", response_model=CoachProfileResponse)
 async def update_my_coach_profile_route(
     payload: CoachProfileUpdate,

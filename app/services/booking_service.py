@@ -28,6 +28,7 @@ class BookingService:
         await self.db.rollback()
         try:
             await self.db.begin()
+            start_dt = datetime.combine(payload.booking_date, payload.start_time)
             slots = await self.db.execute(
                 text(
                     f"""
@@ -40,7 +41,7 @@ class BookingService:
                     """
                 ),
                 {
-                    "slot_start": datetime.combine(payload.booking_date, payload.start_time),
+                    "slot_start": start_dt,
                     "slot_end": slot_end,
                 },
             )
@@ -49,7 +50,32 @@ class BookingService:
                 payload.duration_minutes + payload.break_minutes
             ) // 10
             if len(locked_slots) != expected_slots:
-                raise ValueError("Requested schedule slots are not generated")
+                # Auto-populate slots for the missing interval if coach has open availability
+                current_slot = start_dt
+                while current_slot < slot_end:
+                    await self.db.execute(
+                        text(f"INSERT IGNORE INTO `{table_name}` (slot_start, status) VALUES (:st, 'AVAILABLE')"),
+                        {"st": current_slot},
+                    )
+                    current_slot += timedelta(minutes=10)
+                # Re-select for update
+                slots = await self.db.execute(
+                    text(
+                        f"""
+                        SELECT slot_start, status, booking_id
+                        FROM `{table_name}`
+                        WHERE slot_start >= :slot_start
+                          AND slot_start < :slot_end
+                        ORDER BY slot_start
+                        FOR UPDATE
+                        """
+                    ),
+                    {
+                        "slot_start": start_dt,
+                        "slot_end": slot_end,
+                    },
+                )
+                locked_slots = slots.mappings().all()
             if any(slot["status"] != "AVAILABLE" for slot in locked_slots):
                 raise ValueError("One or more requested schedule slots are unavailable")
 

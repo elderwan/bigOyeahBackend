@@ -251,12 +251,27 @@ model in the `response_model` declaration; validation and error responses use
 | `GET /coaches/{coach_id}/profile` | None | coach profile | `404`, `500` |
 | `GET /coaches/{coach_id}/courses` | None | coach courses | `404`, `500` |
 | `GET /coaches/{coach_id}/services` | None | coach services | `404`, `500` |
+| `GET /coaches/me` | Coach Bearer | `CoachProfileResponse` | `401`, `403`, `404`, `500` |
 | `PATCH /coaches/me` | Coach Bearer | coach profile | `401`, `403`, `409`, `422`, `500` |
 | `GET /coaches/{coach_id}/schedule/slots` | None | schedule slot list | `400`, `404`, `422`, `500` |
 | `POST /coaches/{coach_id}/schedule` | Admin/coach Bearer | schedule metadata (`201`) | `400`, `401`, `403`, `404`, `500` |
 | `POST /bookings` | Member Bearer | booking (`201`) | `400`, `401`, `403`, `409`, `422`, `500` |
 | `GET /admin/dashboard` | Admin Bearer | dashboard | `401`, `403`, `500` |
 | `GET /admin/audit-log` | Admin Bearer | audit records | `401`, `403`, `500` |
+| `GET /admin/members` | Admin Bearer | paginated member list | `401`, `403`, `500` |
+| `POST /admin/members` | Admin Bearer | created member profile (`201`) | `401`, `403`, `409`, `422`, `500` |
+| `PATCH /admin/members/{user_id}/status` | Admin Bearer | updated member profile | `401`, `403`, `404`, `422`, `500` |
+| `GET /admin/coaches` | Admin Bearer | paginated coach list | `401`, `403`, `500` |
+| `POST /admin/coaches` | Admin Bearer | created coach profile (`201`) | `401`, `403`, `409`, `422`, `500` |
+| `POST /admin/coaches/{coach_id}/courses` | Admin Bearer | assigned course | `401`, `403`, `404`, `422`, `500` |
+| `PATCH /admin/coaches/{coach_id}/status` | Admin Bearer | updated coach profile | `401`, `403`, `404`, `422`, `500` |
+| `GET /admin/bookings` | Admin Bearer | paginated booking list | `401`, `403`, `500` |
+| `GET /admin/kpi` | Admin Bearer | KPI rules & coach snapshots | `401`, `403`, `500` |
+| `PUT /admin/kpi/rules/{coach_level}` | Admin Bearer | updated KPI rule | `401`, `403`, `422`, `500` |
+| `GET /admin/revenue` | Admin Bearer | revenue metrics & trend | `401`, `403`, `500` |
+| `PATCH /admin/locations/{gym_id}/status` | Admin Bearer | updated gym status | `401`, `403`, `404`, `422`, `500` |
+| `PATCH /admin/courses/{course_id}/status` | Admin Bearer | updated course status | `401`, `403`, `404`, `422`, `500` |
+| `PATCH /admin/packages/{package_type}/status` | Admin Bearer | updated catalog package status | `401`, `403`, `404`, `422`, `500` |
 
 ### Standard error contracts
 
@@ -466,3 +481,159 @@ All endpoints preserve the HTTP status code.
 
 The same envelope shape is used for `400`, `401`, `403`, `404`, `409`, and
 `500`; only `code`, `message`, and `errors` differ.
+
+## Admin panel endpoints
+
+All admin endpoints require an `ADMIN` role bearer token: `Authorization: Bearer <admin_token>`.
+
+### 1. Admin dashboard & statistics
+
+```text
+GET /admin/dashboard?days=30
+```
+
+Returns aggregate metrics: `total_users`, `total_members`, `active_coaches`, `total_bookings`, `completed_bookings`, `revenue`, `active_packages`, `booking_trend` array, and `top_coaches` ranking.
+
+### 2. Admin members management
+
+```text
+GET /admin/members?search=&status=&level_code=&page=1&page_size=20
+```
+
+Returns paginated member directory including account and membership levels.
+
+```text
+POST /admin/members
+```
+
+Allows administrators to manually provision member accounts and set initial membership levels.
+
+Request body:
+```json
+{
+  "username": "somchai.m",
+  "password": "Password123!",
+  "display_name": "Somchai Jaidee",
+  "email": "somchai@example.com",
+  "phone": "+66891234567",
+  "level_id": 1,
+  "gender": "MALE",
+  "birth_date": "1995-05-12",
+  "height_cm": 175.0,
+  "weight_kg": 70.0,
+  "fitness_goal": "Weight loss"
+}
+```
+
+```text
+PATCH /admin/members/{user_id}/status
+```
+
+Request body:
+```json
+{
+  "status": "DISABLED"
+}
+```
+Accepts `"ACTIVE"` or `"DISABLED"`. Changes are logged in `audit_log`.
+
+### 3. Admin coaches management
+
+```text
+GET /admin/coaches?search=&status=&coach_level=&page=1&page_size=20
+```
+
+Returns paginated trainer directory with rating, assigned courses, and status.
+
+```text
+POST /admin/coaches
+```
+
+Allows administrators to provision trainers with initial levels, bio, assigned courses and gyms. Automatically generates dynamic schedule table `coach_schedule_<coach_no>`.
+
+Request body:
+```json
+{
+  "username": "kanya.coach",
+  "password": "Password123!",
+  "display_name": "Kanya Srisuk",
+  "email": "kanya@example.com",
+  "phone": "+66897654321",
+  "coach_no": "1003",
+  "coach_level": "BEGINNER",
+  "bio": "Certified strength and conditioning trainer.",
+  "service_mode": "BOTH",
+  "break_interval": 10,
+  "years_experience": 3,
+  "certifications": "ACE-CPT",
+  "courses": [
+    { "course_id": 1, "price_per_session": 1200.0 }
+  ],
+  "gyms": [
+    { "gym_id": 1, "is_home_service": 0 }
+  ]
+}
+```
+
+```text
+POST /admin/coaches/{coach_id}/courses
+```
+
+Assign a course to a coach with course-specific pricing.
+
+Request body:
+```json
+{
+  "course_id": 2,
+  "price_per_session": 1500.0,
+  "is_active": 1
+}
+```
+
+```text
+PATCH /admin/coaches/{coach_id}/status
+```
+
+Request body:
+```json
+{
+  "status": "ON_LEAVE"
+}
+```
+Accepts `"ACTIVE"`, `"ON_LEAVE"`, or `"RESIGNED"`. Changes are logged in `audit_log`.
+
+### 4. Admin bookings directory
+
+```text
+GET /admin/bookings?status=&coach_id=&date_from=&date_to=&page=1&page_size=20
+```
+
+Returns filtered cross-platform bookings with payment and participants info.
+
+### 5. Admin KPI rules and snapshots
+
+```text
+GET /admin/kpi?year=2026&month=4
+```
+
+Returns `kpi_rules` list from `kpi_rule` and monthly performance snapshots from `coach_kpi_record`.
+
+```text
+PUT /admin/kpi/rules/{coach_level}
+```
+
+Request body:
+```json
+{
+  "min_monthly_hours": 60.0,
+  "min_avg_rating": 4.2,
+  "min_retention_rate": 40.0
+}
+```
+
+### 6. Admin location / course / package toggle
+
+- `PATCH /admin/locations/{gym_id}/status` with `{"is_active": 1 | 0}`
+- `PATCH /admin/courses/{course_id}/status` with `{"is_active": 1 | 0}`
+- `PATCH /admin/packages/{package_type}/status` with `{"is_active": 1 | 0}`
+

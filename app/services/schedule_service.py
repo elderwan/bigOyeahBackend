@@ -97,7 +97,7 @@ class ScheduleService:
             KEY `idx_cs_{suffix}_status` (`status`, `slot_start`),
             KEY `idx_cs_{suffix}_booking` (`booking_id`),
             CONSTRAINT `chk_cs_{suffix}_grid`
-                CHECK (MINUTE(`slot_start`) % 10 = 0 AND SECOND(`slot_start`) = 0),
+                CHECK (MINUTE(`slot_start`) %% 10 = 0 AND SECOND(`slot_start`) = 0),
             CONSTRAINT `chk_cs_{suffix}_booking`
                 CHECK (
                     (`status` IN ('BOOKED','BREAK') AND `booking_id` IS NOT NULL)

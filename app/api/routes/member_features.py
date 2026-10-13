@@ -258,6 +258,21 @@ async def create_review(
     db: AsyncSession = Depends(get_app_db),
 ) -> dict:
     member_id = await _member_id(user, db)
+    # Auto-complete past confirmed booking if it has already ended
+    await db.execute(
+        text(
+            """
+            UPDATE booking
+            SET status = 'COMPLETED', completed_at = NOW()
+            WHERE booking_id = :booking_id
+              AND member_id = :member_id
+              AND status = 'CONFIRMED'
+              AND TIMESTAMP(booking_date, end_time) <= NOW()
+            """
+        ),
+        {"booking_id": payload.booking_id, "member_id": member_id},
+    )
+    await db.commit()
     try:
         result = await db.execute(
             text(

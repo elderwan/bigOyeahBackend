@@ -19,7 +19,8 @@ async def register_member(
     db: AsyncSession = Depends(get_app_db),
 ) -> AuthResponse:
     try:
-        await db.begin()
+        if not (hasattr(db, "in_transaction") and db.in_transaction()):
+            await db.begin()
         result = await db.execute(
             text(
                 """
