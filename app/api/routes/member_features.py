@@ -60,16 +60,46 @@ async def list_my_bookings(
         text(
             """
             SELECT b.booking_id, b.booking_date, b.start_time, b.end_time,
-                   b.duration_minutes, b.service_mode, b.service_district,
-                   b.service_address, b.price, b.status, b.expires_at,
-                   b.cancel_reason, b.created_at, c.coach_id,
+                   b.duration_minutes, b.break_minutes, b.service_mode,
+                   b.service_district, b.service_address, b.price, b.status,
+                   b.expires_at, b.cancel_reason, b.cancelled_by, b.cancelled_at,
+                   b.created_at, b.updated_at, b.member_id, b.coach_id, b.course_id,
+                   b.gym_id, b.package_id, c.coach_level,
+                   c.service_mode AS coach_service_mode, c.break_interval,
                    cu.display_name AS coach_name, co.course_name,
-                   g.gym_name
+                   co.description AS course_description,
+                   co.difficulty AS course_difficulty,
+                   co.equipment AS course_equipment,
+                   co.default_duration AS course_default_duration,
+                   g.gym_name, g.address AS gym_address, g.district AS gym_district,
+                   o.order_id, o.total_amount AS order_total_amount,
+                   o.discount AS order_discount, o.final_amount AS order_final_amount,
+                   o.payment_method, o.payment_status, o.payment_time,
+                   o.refunded_at, o.created_at AS order_created_at,
+                   o.updated_at AS order_updated_at,
+                   mp.package_id AS member_package_id,
+                   mp.package_type AS member_package_type,
+                   mp.total_sessions AS member_package_total_sessions,
+                   mp.remaining_sessions AS member_package_remaining_sessions,
+                   mp.price AS member_package_price,
+                   mp.purchase_date AS member_package_purchase_date,
+                   mp.expire_date AS member_package_expire_date,
+                   mp.status AS member_package_status,
+                   mp.created_at AS member_package_created_at,
+                   mp.updated_at AS member_package_updated_at,
+                   mpo.order_id AS member_package_order_id,
+                   mpo.payment_status AS member_package_payment_status,
+                   mpo.payment_time AS member_package_payment_time
             FROM booking b
             JOIN coach c ON c.coach_id = b.coach_id
             JOIN users cu ON cu.user_id = c.user_id
             JOIN course co ON co.course_id = b.course_id
             LEFT JOIN gym g ON g.gym_id = b.gym_id
+            LEFT JOIN orders o ON o.booking_id = b.booking_id AND o.order_type = 'BOOKING'
+            LEFT JOIN member_package mp
+                ON mp.package_id = b.package_id AND mp.member_id = b.member_id
+            LEFT JOIN orders mpo
+                ON mpo.package_id = mp.package_id AND mpo.order_type = 'PACKAGE'
             WHERE b.member_id = :member_id
               AND (:booking_status IS NULL OR b.status = :booking_status)
             ORDER BY b.booking_date DESC, b.start_time DESC

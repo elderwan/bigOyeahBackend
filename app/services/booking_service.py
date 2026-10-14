@@ -21,6 +21,8 @@ class BookingService:
 
         # Auto-calculate price if not provided by client
         booking_price = payload.price
+        order_total_amount = Decimal("0.00")
+        order_discount = Decimal("0.00")
         if booking_price is None:
             if payload.package_id is not None:
                 booking_price = Decimal("0.00")
@@ -59,6 +61,10 @@ class BookingService:
                         discount_rate = Decimal(str(rate))
 
                 booking_price = round(base_price * (Decimal("1") - discount_rate), 2)
+                order_total_amount = base_price
+                order_discount = base_price - booking_price
+        else:
+            order_total_amount = Decimal(str(booking_price))
 
         end_time = (
             datetime.combine(payload.booking_date, payload.start_time)
@@ -135,8 +141,9 @@ class BookingService:
                         :member_id, :coach_id, :course_id, :gym_id, :package_id,
                         :booking_date, :start_time, :end_time, :duration_minutes,
                         :break_minutes, :service_mode, :service_district,
-                        :service_address, :price, 'PENDING',
-                        DATE_ADD(NOW(), INTERVAL 15 MINUTE)
+                        :service_address, :price,
+                        CASE WHEN :is_pkg = 1 THEN 'CONFIRMED' ELSE 'PENDING' END,
+                        CASE WHEN :is_pkg = 1 THEN NULL ELSE DATE_ADD(NOW(), INTERVAL 15 MINUTE) END
                     )
                     """
                 ),
@@ -155,6 +162,7 @@ class BookingService:
                     "service_district": payload.service_district,
                     "service_address": payload.service_address,
                     "price": booking_price,
+                    "is_pkg": 1 if payload.package_id is not None else 0,
                 },
             )
             booking_id = result.lastrowid
@@ -165,16 +173,19 @@ class BookingService:
                     """
                     INSERT INTO orders (
                         order_type, booking_id, total_amount, discount, final_amount,
-                        payment_status
+                        payment_method, payment_status, payment_time
                     ) VALUES (
-                        'BOOKING', :booking_id, :total_amount, 0, :final_amount,
-                        CASE WHEN :is_pkg = 1 THEN 'PAID' ELSE 'UNPAID' END
+                        'BOOKING', :booking_id, :total_amount, :discount, :final_amount,
+                        CASE WHEN :is_pkg = 1 THEN 'PACKAGE_CREDIT' ELSE NULL END,
+                        CASE WHEN :is_pkg = 1 THEN 'PAID' ELSE 'UNPAID' END,
+                        CASE WHEN :is_pkg = 1 THEN NOW() ELSE NULL END
                     )
                     """
                 ),
                 {
                     "booking_id": booking_id,
-                    "total_amount": booking_price,
+                    "total_amount": order_total_amount,
+                    "discount": order_discount,
                     "final_amount": booking_price,
                     "is_pkg": 1 if payload.package_id is not None else 0,
                 },

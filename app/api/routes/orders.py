@@ -235,3 +235,25 @@ async def mock_confirm_order_payment(
     d = dict(updated.mappings().one())
     d["order_no"] = f"ORD-{d['order_type'][:3]}-{d['order_id']:08d}"
     return d
+
+
+@router.post("/bookings/{booking_id}/mock-pay", response_model=dict)
+async def mock_confirm_booking_payment(
+    booking_id: int,
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_app_db),
+) -> dict:
+    order_res = await db.execute(
+        text(
+            """
+            SELECT order_id
+            FROM orders
+            WHERE booking_id = :booking_id AND order_type = 'BOOKING'
+            """
+        ),
+        {"booking_id": booking_id},
+    )
+    order_id = order_res.scalar_one_or_none()
+    if order_id is None:
+        raise HTTPException(status_code=404, detail="Booking payment order not found")
+    return await mock_confirm_order_payment(int(order_id), user, db)

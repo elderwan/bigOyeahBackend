@@ -135,6 +135,9 @@ Creates a personal training reservation on the 10-minute grid.
   - `break_minutes` must be `10`, `20`, or `30`.
 - **Response `data`**: `201 Created` with `BookingResponse`.
 
+### `POST /orders/bookings/{booking_id}/mock-pay` (Simulated Checkout)
+Marks the booking's order as paid for local/demo checkout. The endpoint requires the signed-in member to own the booking and does not contact a payment provider or transfer money. The UI only calls it after the member selects **Simulate payment**.
+
 ### `POST /members/me/bookings/{booking_id}/cancel`
 Cancels a reservation.
 
