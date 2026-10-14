@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date as dt_date, datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, Field
@@ -36,7 +36,7 @@ class CoachProfileResponse(CoachListItem):
     certifications: str | None
     break_interval: int
     status: str
-    hired_at: date | None
+    hired_at: dt_date | None
     courses: list[dict]
     gyms: list[dict]
 
@@ -67,7 +67,24 @@ class CoachMemberReviewRequest(BaseModel):
 
 
 class CoachScheduleBlockRequest(BaseModel):
-    date: date
+    date: dt_date | None = None
+    block_date: dt_date | None = None
     start_time: str
     end_time: str
-    reason: str = Field(min_length=1, max_length=100)
+    reason: str | None = Field(default="Personal leave", max_length=100)
+
+
+class CoachScheduleUnblockRequest(BaseModel):
+    date: dt_date | None = None
+    block_date: dt_date | None = None
+    start_time: str
+    end_time: str
+
+
+class CoachConversationSummary(BaseModel):
+    member_id: int
+    member_name: str
+    avatar_url: str | None = None
+    last_message: str
+    last_message_time: datetime
+    unread_count: int

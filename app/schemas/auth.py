@@ -72,6 +72,10 @@ class MemberProfileResponse(BaseModel):
     height_cm: Decimal | None
     weight_kg: Decimal | None
     fitness_goal: str | None
+    next_tier_code: str | None = None
+    next_tier_name: str | None = None
+    next_tier_threshold: Decimal | None = None
+    amount_to_next_tier: Decimal | None = None
 
 
 class MemberProfileUpdate(BaseModel):

@@ -78,8 +78,10 @@ async def get_order_promptpay_qr(
     merchant_target = "0812345678"
     qr_payload = generate_promptpay_payload(merchant_target, amount)
 
+    order_no = f"ORD-{order['order_type'][:3]}-{order['order_id']:08d}"
     return {
         "order_id": order["order_id"],
+        "order_no": order_no,
         "order_type": order["order_type"],
         "amount": amount,
         "currency": "THB",
@@ -87,3 +89,121 @@ async def get_order_promptpay_qr(
         "promptpay_payload": qr_payload,
         "qr_data": qr_payload,
     }
+
+
+@router.post("/{order_id}/mock-pay", response_model=dict)
+@router.post("/{order_id}/confirm-payment", response_model=dict)
+async def mock_confirm_order_payment(
+    order_id: int,
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_app_db),
+) -> dict:
+    order_res = await db.execute(
+        text("SELECT * FROM orders WHERE order_id = :order_id FOR UPDATE"),
+        {"order_id": order_id},
+    )
+    order = order_res.mappings().one_or_none()
+    if order is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    if order["payment_status"] != "PAID":
+        await db.execute(
+            text(
+                """
+                UPDATE orders
+                SET payment_status = 'PAID', payment_time = NOW(), updated_at = NOW()
+                WHERE order_id = :order_id
+                """
+            ),
+            {"order_id": order_id},
+        )
+
+        member_id_to_update = None
+        final_amount = Decimal(str(order["final_amount"] or 0))
+
+        if order["order_type"] == "PACKAGE" and order["package_id"]:
+            # Update member_package status to ACTIVE
+            pkg_res = await db.execute(
+                text("SELECT member_id FROM member_package WHERE package_id = :pid"),
+                {"pid": order["package_id"]},
+            )
+            pkg = pkg_res.mappings().one_or_none()
+            if pkg:
+                member_id_to_update = pkg["member_id"]
+                await db.execute(
+                    text(
+                        """
+                        UPDATE member_package
+                        SET status = 'ACTIVE', updated_at = NOW()
+                        WHERE package_id = :pid
+                        """
+                    ),
+                    {"pid": order["package_id"]},
+                )
+
+        elif order["order_type"] == "BOOKING" and order["booking_id"]:
+            # Update booking status to CONFIRMED
+            b_res = await db.execute(
+                text("SELECT member_id, coach_id, booking_date, start_time, duration_minutes, break_minutes FROM booking WHERE booking_id = :bid"),
+                {"bid": order["booking_id"]},
+            )
+            b_row = b_res.mappings().one_or_none()
+            if b_row:
+                member_id_to_update = b_row["member_id"]
+                await db.execute(
+                    text(
+                        """
+                        UPDATE booking
+                        SET status = 'CONFIRMED', updated_at = NOW()
+                        WHERE booking_id = :bid AND status = 'PENDING'
+                        """
+                    ),
+                    {"bid": order["booking_id"]},
+                )
+
+        # Update member total_spend and check tier upgrade
+        if member_id_to_update and final_amount > 0:
+            await db.execute(
+                text(
+                    """
+                    UPDATE member
+                    SET total_spend = total_spend + :amt
+                    WHERE member_id = :mid
+                    """
+                ),
+                {"amt": final_amount, "mid": member_id_to_update},
+            )
+            # Re-evaluate membership tier
+            mem_res = await db.execute(
+                text("SELECT total_spend FROM member WHERE member_id = :mid"),
+                {"mid": member_id_to_update},
+            )
+            curr_spend = mem_res.scalar_one_or_none() or Decimal("0")
+            level_res = await db.execute(
+                text(
+                    """
+                    SELECT level_id
+                    FROM membership_level
+                    WHERE min_total_spend <= :spend
+                    ORDER BY min_total_spend DESC, sort_order DESC
+                    LIMIT 1
+                    """
+                ),
+                {"spend": curr_spend},
+            )
+            new_level_id = level_res.scalar_one_or_none()
+            if new_level_id:
+                await db.execute(
+                    text("UPDATE member SET level_id = :lid WHERE member_id = :mid"),
+                    {"lid": new_level_id, "mid": member_id_to_update},
+                )
+
+        await db.commit()
+
+    updated = await db.execute(
+        text("SELECT * FROM orders WHERE order_id = :order_id"),
+        {"order_id": order_id},
+    )
+    d = dict(updated.mappings().one())
+    d["order_no"] = f"ORD-{d['order_type'][:3]}-{d['order_id']:08d}"
+    return d

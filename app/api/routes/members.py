@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
@@ -19,10 +20,20 @@ async def _get_member_profile(db: AsyncSession, user_id: int) -> dict:
             SELECT m.member_id, m.user_id, u.username, u.display_name, u.email, u.phone,
                    m.level_id, ml.level_code, ml.level_name,
                    ml.discount_rate, m.total_spend, m.gender, m.birth_date,
-                   m.height_cm, m.weight_kg, m.fitness_goal
+                   m.height_cm, m.weight_kg, m.fitness_goal,
+                   nxt.level_code AS next_tier_code,
+                   nxt.level_name AS next_tier_name,
+                   nxt.min_total_spend AS next_tier_threshold
             FROM member m
             JOIN users u ON u.user_id = m.user_id
             JOIN membership_level ml ON ml.level_id = m.level_id
+            LEFT JOIN membership_level nxt ON nxt.level_id = (
+                SELECT nl.level_id
+                FROM membership_level nl
+                WHERE nl.min_total_spend > m.total_spend
+                ORDER BY nl.min_total_spend ASC, nl.sort_order ASC
+                LIMIT 1
+            )
             WHERE m.user_id = :user_id
             """
         ),
@@ -31,7 +42,15 @@ async def _get_member_profile(db: AsyncSession, user_id: int) -> dict:
     profile = result.mappings().one_or_none()
     if profile is None:
         raise HTTPException(status_code=404, detail="Member profile not found")
-    return dict(profile)
+    d = dict(profile)
+    threshold = d.get("next_tier_threshold")
+    total_spend = Decimal(str(d.get("total_spend") or 0))
+    if threshold is not None:
+        threshold_dec = Decimal(str(threshold))
+        d["amount_to_next_tier"] = max(Decimal("0.00"), threshold_dec - total_spend)
+    else:
+        d["amount_to_next_tier"] = Decimal("0.00")
+    return d
 
 
 def _format_time_value(v) -> str:

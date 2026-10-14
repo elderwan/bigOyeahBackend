@@ -159,7 +159,7 @@ async def admin_recent_activity(
 # ---------------------------------------------------------------------------
 
 
-@router.get("/audit-log", response_model=list[dict])
+@router.get("/audit-log", response_model=dict)
 async def audit_log(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
@@ -171,7 +171,32 @@ async def audit_log(
     date_to: str | None = Query(default=None),
     _: dict = Depends(_require_admin),
     db: AsyncSession = Depends(get_app_db),
-) -> list[dict]:
+) -> dict:
+    filter_params = {
+        "entity_type": entity_type,
+        "entity_id": entity_id,
+        "action": action,
+        "user_id": user_id,
+        "date_from": date_from,
+        "date_to": date_to,
+    }
+    count_res = await db.execute(
+        text(
+            """
+            SELECT COUNT(*)
+            FROM audit_log al
+            WHERE (:entity_type IS NULL OR al.entity_type = :entity_type)
+              AND (:entity_id IS NULL OR al.entity_id = :entity_id)
+              AND (:action IS NULL OR al.action = :action)
+              AND (:user_id IS NULL OR al.user_id = :user_id)
+              AND (:date_from IS NULL OR al.created_at >= :date_from)
+              AND (:date_to IS NULL OR al.created_at <= :date_to)
+            """
+        ),
+        filter_params,
+    )
+    total = int(count_res.scalar_one_or_none() or 0)
+
     result = await db.execute(
         text(
             """
@@ -190,18 +215,17 @@ async def audit_log(
             LIMIT :limit OFFSET :offset
             """
         ),
-        {
-            "limit": limit,
-            "offset": offset,
-            "entity_type": entity_type,
-            "entity_id": entity_id,
-            "action": action,
-            "user_id": user_id,
-            "date_from": date_from,
-            "date_to": date_to,
-        },
+        {**filter_params, "limit": limit, "offset": offset},
     )
-    return [dict(row) for row in result.mappings().all()]
+    items = [dict(row) for row in result.mappings().all()]
+    page = (offset // limit) + 1 if limit > 0 else 1
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "has_more": (offset + len(items)) < total,
+    }
 
 
 @router.get("/audit-log/{log_id}", response_model=dict)

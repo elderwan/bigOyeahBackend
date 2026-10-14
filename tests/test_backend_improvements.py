@@ -1,10 +1,16 @@
-from datetime import date, time, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 import pytest
-from pydantic import ValidationError
+from fastapi.testclient import TestClient
 
+from app.main import app
 from app.schemas.booking import BookingCreateRequest, BookingResponse
 from app.schemas.auth import NextSession
+from app.schemas.coach import (
+    CoachScheduleBlockRequest,
+    CoachScheduleUnblockRequest,
+    CoachConversationSummary,
+)
 from app.api.routes.orders import generate_promptpay_payload
 
 
@@ -82,3 +88,109 @@ def test_promptpay_emvco_generator():
     assert "5406500.00" in payload
     assert "5802TH" in payload
     assert payload.endswith("63047190")
+
+
+def test_coach_schedule_block_defaults():
+    req = CoachScheduleBlockRequest(
+        block_date=date(2026, 10, 23),
+        start_time="14:00",
+        end_time="16:00",
+    )
+    assert req.reason == "Personal leave"
+    assert req.block_date == date(2026, 10, 23)
+
+
+def test_coach_conversation_summary_model():
+    summary = CoachConversationSummary(
+        member_id=1,
+        member_name="Alex Morgan",
+        last_message="See you tomorrow",
+        last_message_time=datetime(2026, 10, 14, 15, 30),
+        unread_count=2,
+    )
+    assert summary.member_id == 1
+    assert summary.unread_count == 2
+
+
+def test_member_profile_next_tier_integration():
+    with TestClient(app) as client:
+        login_res = client.post(
+            "/api/v1/auth/login",
+            json={"username": "alex.demo", "password": "DemoPass123!"}
+        )
+        assert login_res.status_code == 200
+        token = login_res.json()["data"]["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        res = client.get("/api/v1/members/me", headers=headers)
+        assert res.status_code == 200
+        data = res.json()["data"]
+        assert "level_code" in data
+        assert "amount_to_next_tier" in data
+
+
+def test_admin_audit_log_pagination_envelope():
+    with TestClient(app) as client:
+        login_res = client.post(
+            "/api/v1/auth/login",
+            json={"username": "admin.demo", "password": "DemoPass123!"}
+        )
+        assert login_res.status_code == 200
+        token = login_res.json()["data"]["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        res = client.get("/api/v1/admin/audit-log?limit=5&offset=0", headers=headers)
+        assert res.status_code == 200
+        data = res.json()["data"]
+        assert "items" in data
+        assert "total" in data
+        assert "page" in data
+        assert "has_more" in data
+        assert data["limit"] == 5
+        assert isinstance(data["items"], list)
+
+
+def test_coach_routes_integration():
+    with TestClient(app) as client:
+        login_res = client.post(
+            "/api/v1/auth/login",
+            json={"username": "tan.coach", "password": "DemoPass123!"}
+        )
+        assert login_res.status_code == 200
+        token = login_res.json()["data"]["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # 1. Test conversations overview
+        conv_res = client.get("/api/v1/coaches/me/conversations", headers=headers)
+        assert conv_res.status_code == 200
+        assert isinstance(conv_res.json()["data"], list)
+
+        # 2. Test member reviews listing
+        rev_res = client.get("/api/v1/coaches/me/member-reviews", headers=headers)
+        assert rev_res.status_code == 200
+        assert isinstance(rev_res.json()["data"], list)
+
+        # 3. Test block without reason (default "Personal leave")
+        block_res = client.post(
+            "/api/v1/coaches/me/schedule/block",
+            headers=headers,
+            json={
+                "date": "2026-11-20",
+                "start_time": "14:00",
+                "end_time": "15:00"
+            }
+        )
+        assert block_res.status_code == 200
+        assert block_res.json()["data"]["reason"] == "Personal leave"
+
+        # 4. Test unblock
+        unblock_res = client.post(
+            "/api/v1/coaches/me/schedule/unblock",
+            headers=headers,
+            json={
+                "date": "2026-11-20",
+                "start_time": "14:00",
+                "end_time": "15:00"
+            }
+        )
+        assert unblock_res.status_code == 200

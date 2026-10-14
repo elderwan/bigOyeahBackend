@@ -7,12 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import get_current_user
 from app.db.session import get_app_db
 from app.schemas.coach import (
+    CoachConversationSummary,
     CoachListItem,
     CoachMemberReviewRequest,
     CoachMessageCreateRequest,
     CoachProfileResponse,
     CoachProfileUpdate,
     CoachScheduleBlockRequest,
+    CoachScheduleUnblockRequest,
     CoachSearchResponse,
 )
 from app.schemas.coaches import CoachSummary
@@ -491,6 +493,75 @@ async def create_member_review(
     return dict(review.mappings().one())
 
 
+@router.get("/me/member-reviews", response_model=list[dict])
+async def list_my_member_reviews(
+    booking_id: int | None = Query(default=None, gt=0),
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_app_db),
+) -> list[dict]:
+    coach_id = await _coach_id(user, db)
+    result = await db.execute(
+        text(
+            """
+            SELECT rm.*, u.display_name AS member_name, co.course_name
+            FROM review_member rm
+            JOIN member m ON m.member_id = rm.member_id
+            JOIN users u ON u.user_id = m.user_id
+            JOIN booking b ON b.booking_id = rm.booking_id
+            JOIN course co ON co.course_id = b.course_id
+            WHERE rm.coach_id = :coach_id
+              AND (:booking_id IS NULL OR rm.booking_id = :booking_id)
+            ORDER BY rm.created_at DESC
+            """
+        ),
+        {"coach_id": coach_id, "booking_id": booking_id},
+    )
+    return [dict(row) for row in result.mappings().all()]
+
+
+@router.get("/me/conversations", response_model=list[CoachConversationSummary])
+async def list_coach_conversations(
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_app_db),
+) -> list[CoachConversationSummary]:
+    coach_id = await _coach_id(user, db)
+    result = await db.execute(
+        text(
+            """
+            SELECT m.member_id,
+                   u.display_name AS member_name,
+                   NULL AS avatar_url,
+                   latest.message_text AS last_message,
+                   latest.created_at AS last_message_time,
+                   COALESCE(unread.cnt, 0) AS unread_count
+            FROM (
+                SELECT DISTINCT member_id
+                FROM member_message
+                WHERE coach_id = :coach_id
+            ) active_members
+            JOIN member m ON m.member_id = active_members.member_id
+            JOIN users u ON u.user_id = m.user_id
+            JOIN member_message latest ON latest.message_id = (
+                SELECT lm.message_id
+                FROM member_message lm
+                WHERE lm.coach_id = :coach_id AND lm.member_id = active_members.member_id
+                ORDER BY lm.created_at DESC, lm.message_id DESC
+                LIMIT 1
+            )
+            LEFT JOIN (
+                SELECT member_id, COUNT(*) AS cnt
+                FROM member_message
+                WHERE coach_id = :coach_id AND sender_role = 'MEMBER' AND read_at IS NULL
+                GROUP BY member_id
+            ) unread ON unread.member_id = active_members.member_id
+            ORDER BY latest.created_at DESC
+            """
+        ),
+        {"coach_id": coach_id},
+    )
+    return [CoachConversationSummary.model_validate(dict(row)) for row in result.mappings().all()]
+
+
 @router.post("/me/schedule/block", response_model=dict)
 async def block_schedule_slots(
     payload: CoachScheduleBlockRequest,
@@ -498,7 +569,11 @@ async def block_schedule_slots(
     db: AsyncSession = Depends(get_app_db),
 ) -> dict:
     coach_id = await _coach_id(user, db)
-    
+    target_date = payload.block_date or payload.date
+    if target_date is None:
+        raise HTTPException(status_code=422, detail="date or block_date is required")
+    reason = payload.reason or "Personal leave"
+
     # Parse times
     try:
         sp = payload.start_time.split(":")
@@ -516,14 +591,14 @@ async def block_schedule_slots(
         raise HTTPException(status_code=422, detail="end_time must be after start_time")
 
     table_name = await ScheduleService(db).get_table_name(coach_id)
-    start_dt = datetime.combine(payload.date, stime)
-    end_dt = datetime.combine(payload.date, etime)
+    start_dt = datetime.combine(target_date, stime)
+    end_dt = datetime.combine(target_date, etime)
 
     # Check for any already BOOKED slots in interval
     booked_check = await db.execute(
         text(
             f"""
-            SELECT slot_start, status
+            SELECT slot_start, status, booking_id
             FROM `{table_name}`
             WHERE slot_start >= :sdt AND slot_start < :edt AND status = 'BOOKED'
             LIMIT 1
@@ -531,11 +606,15 @@ async def block_schedule_slots(
         ),
         {"sdt": start_dt, "edt": end_dt},
     )
-    if booked_check.mappings().first() is not None:
-        raise HTTPException(
-            status_code=409,
-            detail="Cannot block schedule: There are already booked sessions in this time window",
+    first_conflict = booked_check.mappings().first()
+    if first_conflict is not None:
+        b_id = first_conflict.get("booking_id")
+        conflict_msg = (
+            f"该时间段已有学员预约（预约号 #{b_id}），无法直接锁定。请先与学员沟通协调退改。"
+            if b_id
+            else "该时间段已有学员预约，无法直接锁定。请先与学员沟通协调退改。"
         )
+        raise HTTPException(status_code=409, detail=conflict_msg)
 
     # Insert or update slots to BLOCKED
     curr = start_dt
@@ -548,7 +627,7 @@ async def block_schedule_slots(
                 ON DUPLICATE KEY UPDATE status = 'BLOCKED', remark = :reason
                 """
             ),
-            {"st": curr, "reason": payload.reason},
+            {"st": curr, "reason": reason},
         )
         curr += timedelta(minutes=10)
     await db.commit()
@@ -556,8 +635,60 @@ async def block_schedule_slots(
     return {
         "success": True,
         "message": "Schedule slots successfully blocked",
-        "date": str(payload.date),
+        "date": str(target_date),
         "start_time": payload.start_time,
         "end_time": payload.end_time,
-        "reason": payload.reason,
+        "reason": reason,
+    }
+
+
+@router.post("/me/schedule/unblock", response_model=dict)
+@router.delete("/me/schedule/block", response_model=dict)
+async def unblock_schedule_slots(
+    payload: CoachScheduleUnblockRequest,
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_app_db),
+) -> dict:
+    coach_id = await _coach_id(user, db)
+    target_date = payload.block_date or payload.date
+    if target_date is None:
+        raise HTTPException(status_code=422, detail="date or block_date is required")
+
+    try:
+        sp = payload.start_time.split(":")
+        sh, sm = int(sp[0]), int(sp[1])
+        ep = payload.end_time.split(":")
+        eh, em = int(ep[0]), int(ep[1])
+        stime = time(hour=sh, minute=sm)
+        etime = time(hour=eh, minute=em)
+    except Exception:
+        raise HTTPException(status_code=422, detail="Invalid time format (HH:MM required)")
+
+    if sm % 10 != 0 or em % 10 != 0:
+        raise HTTPException(status_code=422, detail="start_time and end_time minute must align to a 10-minute grid")
+    if etime <= stime:
+        raise HTTPException(status_code=422, detail="end_time must be after start_time")
+
+    table_name = await ScheduleService(db).get_table_name(coach_id)
+    start_dt = datetime.combine(target_date, stime)
+    end_dt = datetime.combine(target_date, etime)
+
+    await db.execute(
+        text(
+            f"""
+            UPDATE `{table_name}`
+            SET status = 'AVAILABLE', remark = NULL
+            WHERE slot_start >= :sdt AND slot_start < :edt AND status = 'BLOCKED'
+            """
+        ),
+        {"sdt": start_dt, "edt": end_dt},
+    )
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": "Schedule slots successfully unblocked",
+        "date": str(target_date),
+        "start_time": payload.start_time,
+        "end_time": payload.end_time,
     }
