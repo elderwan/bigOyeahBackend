@@ -4,8 +4,8 @@
 -- Targets: MySQL 8.0.16+
 --
 -- This script contains:
---   PART 1: Full Seed / Sample Data Initialization (直接可执行的全量测试基础数据)
---   PART 2: Core Operational Backend DML Templates (从 FastAPI 后端业务层提取的实时流转 DML 语句)
+--   PART 1: Full Seed / Sample Data Initialization 
+--   PART 2: Core Operational Backend DML Templates 
 -- ===========================================================================
 
 SET NAMES utf8mb4;
