@@ -50,3 +50,24 @@ class CoachProfileUpdate(BaseModel):
     years_experience: int | None = Field(default=None, ge=0, le=255)
     certifications: str | None = Field(default=None, max_length=500)
     avatar_url: str | None = Field(default=None, max_length=255)
+
+
+class CoachMessageCreateRequest(BaseModel):
+    member_id: int = Field(gt=0)
+    message_text: str = Field(min_length=1, max_length=2000)
+
+
+class CoachMemberReviewRequest(BaseModel):
+    booking_id: int = Field(gt=0)
+    completion_score: int = Field(ge=1, le=5)
+    proficiency_score: int = Field(ge=1, le=5)
+    training_area: str = Field(pattern="^(UPPER_BODY|CORE|LOWER_BODY|BACK|SHOULDER|FULL_BODY)$")
+    training_type: str = Field(pattern="^(STRENGTH|CARDIO|FLEXIBILITY|BALANCE|POWER)$")
+    coach_note: str | None = Field(default=None, max_length=1000)
+
+
+class CoachScheduleBlockRequest(BaseModel):
+    date: date
+    start_time: str
+    end_time: str
+    reason: str = Field(min_length=1, max_length=100)

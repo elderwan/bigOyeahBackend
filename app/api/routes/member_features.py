@@ -37,6 +37,18 @@ async def _member_id(user: dict, db: AsyncSession) -> int:
     return int(value)
 
 
+def _format_time_value(v) -> str:
+    if hasattr(v, "total_seconds"):
+        ts = int(v.total_seconds())
+        hours = ts // 3600
+        minutes = (ts % 3600) // 60
+        seconds = ts % 60
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+    if hasattr(v, "strftime"):
+        return v.strftime("%H:%M:%S")
+    return str(v) if v is not None else ""
+
+
 @router.get("/bookings", response_model=list[dict])
 async def list_my_bookings(
     booking_status: str | None = Query(default=None, alias="status"),
@@ -65,7 +77,15 @@ async def list_my_bookings(
         ),
         {"member_id": member_id, "booking_status": booking_status},
     )
-    return [dict(row) for row in result.mappings().all()]
+    bookings = []
+    for row in result.mappings().all():
+        d = dict(row)
+        if "start_time" in d and d["start_time"] is not None:
+            d["start_time"] = _format_time_value(d["start_time"])
+        if "end_time" in d and d["end_time"] is not None:
+            d["end_time"] = _format_time_value(d["end_time"])
+        bookings.append(d)
+    return bookings
 
 
 @router.get("/bookings/{booking_id}", response_model=dict)
@@ -92,7 +112,12 @@ async def get_my_booking(
     row = result.mappings().one_or_none()
     if row is None:
         raise HTTPException(status_code=404, detail="Booking not found")
-    return dict(row)
+    d = dict(row)
+    if "start_time" in d and d["start_time"] is not None:
+        d["start_time"] = _format_time_value(d["start_time"])
+    if "end_time" in d and d["end_time"] is not None:
+        d["end_time"] = _format_time_value(d["end_time"])
+    return d
 
 
 @router.post("/bookings/{booking_id}/cancel", response_model=dict)
@@ -204,17 +229,18 @@ async def purchase_package(
             },
         )
         package_id = result.lastrowid
-        await db.execute(
+        order_res = await db.execute(
             text(
                 """
                 INSERT INTO orders
                     (order_type, package_id, total_amount, discount, final_amount,
-                     payment_method, payment_status)
-                VALUES ('PACKAGE', :package_id, :price, 0, :price, :payment_method, 'UNPAID')
+                     payment_method, payment_status, payment_time)
+                VALUES ('PACKAGE', :package_id, :price, 0, :price, :payment_method, 'PAID', NOW())
                 """
             ),
             {"package_id": package_id, "price": price, "payment_method": payload.payment_method},
         )
+        order_id = order_res.lastrowid
         await db.commit()
     except IntegrityError:
         await db.rollback()
@@ -223,7 +249,12 @@ async def purchase_package(
         text("SELECT * FROM member_package WHERE package_id = :package_id"),
         {"package_id": package_id},
     )
-    return dict(result.mappings().one())
+    res_dict = dict(result.mappings().one())
+    res_dict["order_id"] = order_id
+    res_dict["total_amount"] = str(price)
+    res_dict["payment_method"] = payload.payment_method
+    res_dict["payment_status"] = "PAID"
+    return res_dict
 
 
 @router.get("/reviews", response_model=list[dict])
@@ -295,6 +326,63 @@ async def create_review(
                 "comment": payload.comment,
             },
         )
+        review_id = result.lastrowid
+
+        # Auto-recalculate coach average rating and coach_kpi_record
+        booking_info = await db.execute(
+            text("SELECT coach_id FROM booking WHERE booking_id = :bid"),
+            {"bid": payload.booking_id},
+        )
+        target_coach_id = booking_info.scalar_one_or_none()
+        if target_coach_id is not None:
+            await db.execute(
+                text(
+                    """
+                    UPDATE coach
+                    SET average_rating = (
+                        SELECT ROUND(AVG((rc.rating_professional + rc.rating_communication + rc.rating_punctuality + rc.rating_effectiveness) / 4.0), 2)
+                        FROM review_coach rc
+                        JOIN booking b ON b.booking_id = rc.booking_id
+                        WHERE b.coach_id = :cid
+                    )
+                    WHERE coach_id = :cid
+                    """
+                ),
+                {"cid": target_coach_id},
+            )
+            # Update current month KPI
+            today = date.today()
+            avg_res = await db.execute(
+                text(
+                    """
+                    SELECT ROUND(AVG((rc.rating_professional + rc.rating_communication + rc.rating_punctuality + rc.rating_effectiveness) / 4.0), 2)
+                    FROM review_coach rc
+                    JOIN booking b ON b.booking_id = rc.booking_id
+                    WHERE b.coach_id = :cid
+                      AND YEAR(rc.created_at) = :yr AND MONTH(rc.created_at) = :mo
+                    """
+                ),
+                {"cid": target_coach_id, "yr": today.year, "mo": today.month},
+            )
+            m_avg = avg_res.scalar_one_or_none()
+            if m_avg is not None:
+                await db.execute(
+                    text(
+                        """
+                        UPDATE coach_kpi_record
+                        SET avg_rating = :avg_rating,
+                            is_achieved = CASE
+                                WHEN total_hours >= target_hours
+                                 AND :avg_rating >= target_avg_rating
+                                 AND (retention_rate IS NULL OR retention_rate >= target_retention_rate)
+                                THEN 1 ELSE 0
+                            END,
+                            calculated_at = NOW()
+                        WHERE coach_id = :cid AND kpi_year = :yr AND kpi_month = :mo
+                        """
+                    ),
+                    {"cid": target_coach_id, "yr": today.year, "mo": today.month, "avg_rating": m_avg},
+                )
         await db.commit()
     except IntegrityError:
         await db.rollback()
@@ -304,7 +392,7 @@ async def create_review(
         ) from None
     result = await db.execute(
         text("SELECT * FROM review_coach WHERE review_coach_id = :review_id"),
-        {"review_id": result.lastrowid},
+        {"review_id": review_id},
     )
     return dict(result.mappings().one())
 
@@ -384,8 +472,8 @@ async def get_progress(
         WeeklyActivitySlot(
             date=row["booking_date"].isoformat(),
             day=row["booking_date"].strftime("%a"),
-            start_time=str(row["start_time"]),
-            end_time=str(row["end_time"]),
+            start_time=_format_time_value(row["start_time"]),
+            end_time=_format_time_value(row["end_time"]),
             title=row["course_name"],
             coach_name=row["coach_name"],
             status=row["status"],

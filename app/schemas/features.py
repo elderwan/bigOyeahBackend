@@ -69,6 +69,8 @@ class MessageResponse(BaseModel):
     message_id: int
     coach_id: int
     coach_name: str
+    member_id: int | None = None
+    member_name: str | None = None
     sender_role: str
     message_text: str
     read_at: datetime | None

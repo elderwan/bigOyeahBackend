@@ -1,8 +1,10 @@
-from contextlib import asynccontextmanager
+import asyncio
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.router import api_router
@@ -12,13 +14,37 @@ from app.core.exception_handlers import (
     request_validation_exception_handler,
     unhandled_exception_handler,
 )
-from app.db.session import dispose_engines
+from app.db.session import app_session_factory, dispose_engines
 from app.middleware.request_context import RequestContextMiddleware
+
+
+async def _booking_lifecycle_worker():
+    while True:
+        try:
+            async with app_session_factory() as session:
+                await session.execute(
+                    text(
+                        """
+                        UPDATE booking
+                        SET status = 'COMPLETED', completed_at = NOW(), updated_at = NOW()
+                        WHERE status = 'CONFIRMED'
+                          AND TIMESTAMP(booking_date, end_time) < NOW() - INTERVAL 30 MINUTE
+                        """
+                    )
+                )
+                await session.commit()
+        except Exception:
+            pass
+        await asyncio.sleep(600)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    worker_task = asyncio.create_task(_booking_lifecycle_worker())
     yield
+    worker_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await worker_task
     await dispose_engines()
 
 

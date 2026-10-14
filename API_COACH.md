@@ -169,3 +169,25 @@ Sends a reply to a member.
     "message_text": "Looking forward to our session tomorrow at Nimman Fitness Club at 09:00."
   }
   ```
+
+---
+
+## 5. Schedule Slot Blocking (Leave Request)
+
+### `POST /coaches/me/schedule/block`
+Locks out a specific time range from being booked (e.g. for personal leave or doctor appointment).
+
+- **Authentication**: `Authorization: Bearer <coach_token>`
+- **Request Body**:
+  ```json
+  {
+    "date": "2026-10-23",
+    "start_time": "14:00",
+    "end_time": "16:00",
+    "reason": "Personal medical appointment"
+  }
+  ```
+- **Rules**:
+  - `start_time` and `end_time` must align to a 10-minute grid (`:00`, `:10`, `:20`, `:30`, `:40`, `:50`).
+  - If any slot in the requested range is already `BOOKED`, returns `409 Conflict`.
+  - Otherwise, matching slots in dynamic schedule table `coach_schedule_<coach_id>` are updated to `status = 'BLOCKED', remark = :reason`.

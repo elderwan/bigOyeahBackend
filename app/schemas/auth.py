@@ -106,8 +106,8 @@ class WeeklySummary(BaseModel):
 class NextSession(BaseModel):
     booking_id: int
     booking_date: date
-    start_time: time
-    end_time: time
+    start_time: str
+    end_time: str
     duration_minutes: int
     service_mode: str
     price: Decimal
@@ -115,6 +115,19 @@ class NextSession(BaseModel):
     course_name: str
     gym_name: str | None = None
     district: str | None = None
+
+    @field_validator("start_time", "end_time", mode="before")
+    @classmethod
+    def parse_time_or_delta(cls, v) -> str:
+        if hasattr(v, "total_seconds"):
+            total_seconds = int(v.total_seconds())
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            seconds = total_seconds % 60
+            return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+        if isinstance(v, time):
+            return v.strftime("%H:%M:%S")
+        return str(v)
 
 
 class RecommendedCoach(BaseModel):

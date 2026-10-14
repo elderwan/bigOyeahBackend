@@ -288,3 +288,24 @@ Queries coach availability slots for a target date range.
   - `gym_id`: Facility ID (when `GYM`)
   - `district`: District (when `HOME`)
 - **Response `data`**: List of 10-minute slots (`slot_start`, `status: "AVAILABLE" | "BOOKED" | "LOCKED"`).
+
+---
+
+## 6. Orders & Payment Utilities
+
+### `POST /orders/{order_id}/promptpay-qr` (and `GET /orders/{order_id}/promptpay-qr`)
+Generates an official Thailand PromptPay EMVCo QR code string containing the exact order final amount for mobile banking checkout.
+
+- **Authentication**: `Authorization: Bearer <token>`
+- **Response `data`**:
+  ```json
+  {
+    "order_id": 204,
+    "order_type": "PACKAGE",
+    "amount": 3400.0,
+    "currency": "THB",
+    "payment_status": "PAID",
+    "promptpay_payload": "00020101021229370016A00000067701011101130066812345678530376454073400.005802TH6304...",
+    "qr_data": "00020101021229370016A00000067701011101130066812345678530376454073400.005802TH6304..."
+  }
+  ```

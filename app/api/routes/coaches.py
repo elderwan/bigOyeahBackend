@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from datetime import datetime, time, timedelta
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -6,11 +8,16 @@ from app.api.dependencies import get_current_user
 from app.db.session import get_app_db
 from app.schemas.coach import (
     CoachListItem,
+    CoachMemberReviewRequest,
+    CoachMessageCreateRequest,
     CoachProfileResponse,
     CoachProfileUpdate,
+    CoachScheduleBlockRequest,
     CoachSearchResponse,
 )
 from app.schemas.coaches import CoachSummary
+from app.schemas.features import MessageResponse
+from app.services.schedule_service import ScheduleService
 
 router = APIRouter()
 
@@ -256,3 +263,301 @@ async def update_my_coach_profile(
     if coach_id is None:
         raise HTTPException(status_code=404, detail="Coach profile not found")
     return await get_coach_profile(coach_id, db)
+
+
+async def _coach_id(user: dict, db: AsyncSession) -> int:
+    if user["role"] != "COACH":
+        raise HTTPException(status_code=403, detail="Coach access required")
+    result = await db.execute(
+        text("SELECT coach_id FROM coach WHERE user_id = :user_id"),
+        {"user_id": user["user_id"]},
+    )
+    coach_id = result.scalar_one_or_none()
+    if coach_id is None:
+        raise HTTPException(status_code=404, detail="Coach profile not found")
+    return int(coach_id)
+
+
+@router.get("/me/messages", response_model=list[MessageResponse])
+async def list_coach_messages(
+    member_id: int | None = Query(default=None, gt=0),
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_app_db),
+) -> list[MessageResponse]:
+    coach_id = await _coach_id(user, db)
+    # Mark incoming unread member messages as read
+    if member_id is not None:
+        await db.execute(
+            text(
+                """
+                UPDATE member_message
+                SET read_at = NOW()
+                WHERE coach_id = :coach_id AND member_id = :member_id
+                  AND sender_role = 'MEMBER' AND read_at IS NULL
+                """
+            ),
+            {"coach_id": coach_id, "member_id": member_id},
+        )
+        await db.commit()
+    result = await db.execute(
+        text(
+            """
+            SELECT mm.message_id, mm.coach_id, mm.member_id,
+                   cu.display_name AS coach_name,
+                   mu.display_name AS member_name,
+                   mm.sender_role, mm.message_text, mm.read_at, mm.created_at
+            FROM member_message mm
+            JOIN coach c ON c.coach_id = mm.coach_id
+            JOIN users cu ON cu.user_id = c.user_id
+            JOIN member m ON m.member_id = mm.member_id
+            JOIN users mu ON mu.user_id = m.user_id
+            WHERE mm.coach_id = :coach_id
+              AND (:member_id IS NULL OR mm.member_id = :member_id)
+            ORDER BY mm.created_at
+            """
+        ),
+        {"coach_id": coach_id, "member_id": member_id},
+    )
+    return [MessageResponse.model_validate(dict(row)) for row in result.mappings().all()]
+
+
+@router.post("/me/messages", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
+async def send_coach_message(
+    payload: CoachMessageCreateRequest,
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_app_db),
+) -> MessageResponse:
+    coach_id = await _coach_id(user, db)
+    member_result = await db.execute(
+        text(
+            """
+            SELECT m.member_id
+            FROM member m JOIN users u ON u.user_id = m.user_id
+            WHERE m.member_id = :member_id AND u.status = 'ACTIVE'
+            """
+        ),
+        {"member_id": payload.member_id},
+    )
+    if member_result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail="Member not found")
+
+    res = await db.execute(
+        text(
+            """
+            INSERT INTO member_message (member_id, coach_id, sender_role, message_text)
+            VALUES (:member_id, :coach_id, 'COACH', :message_text)
+            """
+        ),
+        {
+            "member_id": payload.member_id,
+            "coach_id": coach_id,
+            "message_text": payload.message_text,
+        },
+    )
+    message_id = res.lastrowid
+    await db.commit()
+
+    created = await db.execute(
+        text(
+            """
+            SELECT mm.message_id, mm.coach_id, mm.member_id,
+                   cu.display_name AS coach_name,
+                   mu.display_name AS member_name,
+                   mm.sender_role, mm.message_text, mm.read_at, mm.created_at
+            FROM member_message mm
+            JOIN coach c ON c.coach_id = mm.coach_id
+            JOIN users cu ON cu.user_id = c.user_id
+            JOIN member m ON m.member_id = mm.member_id
+            JOIN users mu ON mu.user_id = m.user_id
+            WHERE mm.message_id = :message_id
+            """
+        ),
+        {"message_id": message_id},
+    )
+    return MessageResponse.model_validate(dict(created.mappings().one()))
+
+
+@router.post("/me/member-reviews", response_model=dict, status_code=status.HTTP_201_CREATED)
+async def create_member_review(
+    payload: CoachMemberReviewRequest,
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_app_db),
+) -> dict:
+    coach_id = await _coach_id(user, db)
+    booking_res = await db.execute(
+        text(
+            """
+            SELECT booking_id, coach_id, member_id, status
+            FROM booking
+            WHERE booking_id = :booking_id
+            """
+        ),
+        {"booking_id": payload.booking_id},
+    )
+    booking = booking_res.mappings().one_or_none()
+    if booking is None:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if booking["coach_id"] != coach_id:
+        raise HTTPException(status_code=403, detail="Cannot review a booking assigned to another coach")
+    if booking["status"] != "COMPLETED":
+        raise HTTPException(status_code=400, detail="Cannot review an incomplete booking")
+
+    existing = await db.execute(
+        text("SELECT review_member_id FROM review_member WHERE booking_id = :bid"),
+        {"bid": payload.booking_id},
+    )
+    if existing.scalar_one_or_none() is not None:
+        raise HTTPException(status_code=409, detail="A review for this booking already exists")
+
+    try:
+        ins = await db.execute(
+            text(
+                """
+                INSERT INTO review_member
+                    (booking_id, coach_id, member_id, completion_score,
+                     proficiency_score, training_area, training_type, coach_note)
+                VALUES
+                    (:booking_id, :coach_id, :member_id, :completion_score,
+                     :proficiency_score, :training_area, :training_type, :coach_note)
+                """
+            ),
+            {
+                "booking_id": payload.booking_id,
+                "coach_id": coach_id,
+                "member_id": booking["member_id"],
+                "completion_score": payload.completion_score,
+                "proficiency_score": payload.proficiency_score,
+                "training_area": payload.training_area,
+                "training_type": payload.training_type,
+                "coach_note": payload.coach_note,
+            },
+        )
+        review_id = ins.lastrowid
+
+        # Update fitness_profile for member
+        area_stats = await db.execute(
+            text(
+                """
+                SELECT training_area,
+                       AVG((completion_score + proficiency_score) / 2.0) AS avg_score,
+                       COUNT(*) AS cnt
+                FROM review_member
+                WHERE member_id = :member_id
+                GROUP BY training_area
+                ORDER BY avg_score DESC
+                """
+            ),
+            {"member_id": booking["member_id"]},
+        )
+        stats = area_stats.mappings().all()
+        if stats:
+            strongest = stats[0]
+            weakest = stats[-1]
+            total_reviews = sum(s["cnt"] for s in stats)
+            await db.execute(
+                text(
+                    """
+                    INSERT INTO fitness_profile
+                        (member_id, strongest_area, weakest_area, strongest_score, weakest_score, review_count, updated_at)
+                    VALUES
+                        (:mid, :s_area, :w_area, :s_score, :w_score, :cnt, NOW())
+                    ON DUPLICATE KEY UPDATE
+                        strongest_area = VALUES(strongest_area),
+                        weakest_area = VALUES(weakest_area),
+                        strongest_score = VALUES(strongest_score),
+                        weakest_score = VALUES(weakest_score),
+                        review_count = VALUES(review_count),
+                        updated_at = NOW()
+                    """
+                ),
+                {
+                    "mid": booking["member_id"],
+                    "s_area": strongest["training_area"],
+                    "w_area": weakest["training_area"],
+                    "s_score": strongest["avg_score"],
+                    "w_score": weakest["avg_score"],
+                    "cnt": total_reviews,
+                },
+            )
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
+
+    review = await db.execute(
+        text("SELECT * FROM review_member WHERE review_member_id = :rid"),
+        {"rid": review_id},
+    )
+    return dict(review.mappings().one())
+
+
+@router.post("/me/schedule/block", response_model=dict)
+async def block_schedule_slots(
+    payload: CoachScheduleBlockRequest,
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_app_db),
+) -> dict:
+    coach_id = await _coach_id(user, db)
+    
+    # Parse times
+    try:
+        sp = payload.start_time.split(":")
+        sh, sm = int(sp[0]), int(sp[1])
+        ep = payload.end_time.split(":")
+        eh, em = int(ep[0]), int(ep[1])
+        stime = time(hour=sh, minute=sm)
+        etime = time(hour=eh, minute=em)
+    except Exception:
+        raise HTTPException(status_code=422, detail="Invalid time format (HH:MM required)")
+
+    if sm % 10 != 0 or em % 10 != 0:
+        raise HTTPException(status_code=422, detail="start_time and end_time minute must align to a 10-minute grid")
+    if etime <= stime:
+        raise HTTPException(status_code=422, detail="end_time must be after start_time")
+
+    table_name = await ScheduleService(db).get_table_name(coach_id)
+    start_dt = datetime.combine(payload.date, stime)
+    end_dt = datetime.combine(payload.date, etime)
+
+    # Check for any already BOOKED slots in interval
+    booked_check = await db.execute(
+        text(
+            f"""
+            SELECT slot_start, status
+            FROM `{table_name}`
+            WHERE slot_start >= :sdt AND slot_start < :edt AND status = 'BOOKED'
+            LIMIT 1
+            """
+        ),
+        {"sdt": start_dt, "edt": end_dt},
+    )
+    if booked_check.mappings().first() is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot block schedule: There are already booked sessions in this time window",
+        )
+
+    # Insert or update slots to BLOCKED
+    curr = start_dt
+    while curr < end_dt:
+        await db.execute(
+            text(
+                f"""
+                INSERT INTO `{table_name}` (slot_start, status, remark)
+                VALUES (:st, 'BLOCKED', :reason)
+                ON DUPLICATE KEY UPDATE status = 'BLOCKED', remark = :reason
+                """
+            ),
+            {"st": curr, "reason": payload.reason},
+        )
+        curr += timedelta(minutes=10)
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": "Schedule slots successfully blocked",
+        "date": str(payload.date),
+        "start_time": payload.start_time,
+        "end_time": payload.end_time,
+        "reason": payload.reason,
+    }

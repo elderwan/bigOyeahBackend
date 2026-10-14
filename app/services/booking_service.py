@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from decimal import Decimal
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +17,49 @@ class BookingService:
         payload: BookingCreateRequest,
         member_id: int | None = None,
     ) -> dict:
+        effective_member_id = member_id if member_id is not None else payload.member_id
+
+        # Auto-calculate price if not provided by client
+        booking_price = payload.price
+        if booking_price is None:
+            if payload.package_id is not None:
+                booking_price = Decimal("0.00")
+            else:
+                course_price_res = await self.db.execute(
+                    text(
+                        """
+                        SELECT price_per_session
+                        FROM coach_course
+                        WHERE coach_id = :coach_id AND course_id = :course_id AND is_active = 1
+                        """
+                    ),
+                    {"coach_id": payload.coach_id, "course_id": payload.course_id},
+                )
+                base_price = course_price_res.scalar_one_or_none()
+                if base_price is None:
+                    base_price = Decimal("1000.00")
+                else:
+                    base_price = Decimal(str(base_price))
+
+                discount_rate = Decimal("0.000")
+                if effective_member_id is not None:
+                    disc_res = await self.db.execute(
+                        text(
+                            """
+                            SELECT ml.discount_rate
+                            FROM member m
+                            JOIN membership_level ml ON ml.level_id = m.level_id
+                            WHERE m.member_id = :member_id
+                            """
+                        ),
+                        {"member_id": effective_member_id},
+                    )
+                    rate = disc_res.scalar_one_or_none()
+                    if rate is not None:
+                        discount_rate = Decimal(str(rate))
+
+                booking_price = round(base_price * (Decimal("1") - discount_rate), 2)
+
         end_time = (
             datetime.combine(payload.booking_date, payload.start_time)
             + timedelta(minutes=payload.duration_minutes)
@@ -97,7 +141,7 @@ class BookingService:
                     """
                 ),
                 {
-                    "member_id": member_id if member_id is not None else payload.member_id,
+                    "member_id": effective_member_id,
                     "coach_id": payload.coach_id,
                     "course_id": payload.course_id,
                     "gym_id": payload.gym_id,
@@ -110,10 +154,32 @@ class BookingService:
                     "service_mode": payload.service_mode,
                     "service_district": payload.service_district,
                     "service_address": payload.service_address,
-                    "price": payload.price,
+                    "price": booking_price,
                 },
             )
             booking_id = result.lastrowid
+
+            # Create corresponding orders record
+            await self.db.execute(
+                text(
+                    """
+                    INSERT INTO orders (
+                        order_type, booking_id, total_amount, discount, final_amount,
+                        payment_status
+                    ) VALUES (
+                        'BOOKING', :booking_id, :total_amount, 0, :final_amount,
+                        CASE WHEN :is_pkg = 1 THEN 'PAID' ELSE 'UNPAID' END
+                    )
+                    """
+                ),
+                {
+                    "booking_id": booking_id,
+                    "total_amount": booking_price,
+                    "final_amount": booking_price,
+                    "is_pkg": 1 if payload.package_id is not None else 0,
+                },
+            )
+
             await self.db.execute(
                 text(
                     f"""

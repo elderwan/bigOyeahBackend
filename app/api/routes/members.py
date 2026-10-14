@@ -34,6 +34,18 @@ async def _get_member_profile(db: AsyncSession, user_id: int) -> dict:
     return dict(profile)
 
 
+def _format_time_value(v) -> str:
+    if hasattr(v, "total_seconds"):
+        ts = int(v.total_seconds())
+        hours = ts // 3600
+        minutes = (ts % 3600) // 60
+        seconds = ts % 60
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+    if hasattr(v, "strftime"):
+        return v.strftime("%H:%M:%S")
+    return str(v) if v is not None else ""
+
+
 @router.get("/me", response_model=MemberProfileResponse)
 async def get_member_profile(
     user: dict = Depends(get_current_user),
@@ -179,6 +191,25 @@ async def get_member_dashboard(
     weekly_row = dict(weekly.mappings().one())
     workouts_done = int(weekly_row["workouts_done"])
     weekly_goal = 4
+
+    next_session_dict = dict(next_session.mappings().one_or_none() or {})
+    if next_session_dict:
+        if "start_time" in next_session_dict:
+            next_session_dict["start_time"] = _format_time_value(next_session_dict["start_time"])
+        if "end_time" in next_session_dict:
+            next_session_dict["end_time"] = _format_time_value(next_session_dict["end_time"])
+    else:
+        next_session_dict = None
+
+    upcoming_list = []
+    for row in bookings.mappings().all():
+        d = dict(row)
+        if "start_time" in d:
+            d["start_time"] = _format_time_value(d["start_time"])
+        if "end_time" in d:
+            d["end_time"] = _format_time_value(d["end_time"])
+        upcoming_list.append(d)
+
     return MemberDashboardResponse(
         profile=MemberProfileResponse.model_validate(profile),
         weekly_summary={
@@ -189,9 +220,8 @@ async def get_member_dashboard(
             "active_minutes": int(weekly_row["active_minutes"]),
             "streak_days": 0,
         },
-        next_session=dict(next_session.mappings().one_or_none() or {})
-        or None,
+        next_session=next_session_dict,
         recommended_coaches=[dict(row) for row in recommended.mappings().all()],
-        upcoming_bookings=[dict(row) for row in bookings.mappings().all()],
+        upcoming_bookings=upcoming_list,
         active_packages=[dict(row) for row in packages.mappings().all()],
     )

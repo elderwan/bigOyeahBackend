@@ -165,7 +165,21 @@ Purchases a package tier from the catalog.
     "payment_method": "PROMPTPAY"
   }
   ```
-- **Response `data`**: Newly issued `member_package` object with order receipt.
+- **Response `data`**: Newly issued `member_package` object with order receipt:
+  ```json
+  {
+    "package_id": 3,
+    "order_id": 204,
+    "package_type": "10+3",
+    "total_sessions": 13,
+    "remaining_sessions": 13,
+    "total_amount": "6800.00",
+    "payment_method": "PROMPTPAY",
+    "payment_status": "PAID",
+    "expire_date": "2027-04-12",
+    "status": "ACTIVE"
+  }
+  ```
 
 ---
 

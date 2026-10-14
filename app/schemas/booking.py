@@ -1,8 +1,8 @@
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class BookingCreateRequest(BaseModel):
@@ -18,7 +18,7 @@ class BookingCreateRequest(BaseModel):
     service_mode: Literal["GYM", "HOME"]
     service_district: str | None = None
     service_address: str | None = None
-    price: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
+    price: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=2)
 
     @model_validator(mode="after")
     def validate_service_location(self) -> "BookingCreateRequest":
@@ -46,8 +46,8 @@ class BookingResponse(BaseModel):
     gym_id: int | None
     package_id: int | None
     booking_date: date
-    start_time: time
-    end_time: time
+    start_time: str
+    end_time: str
     duration_minutes: int
     break_minutes: int
     service_mode: str
@@ -62,3 +62,16 @@ class BookingResponse(BaseModel):
     completed_at: datetime | None
     created_at: datetime
     updated_at: datetime
+
+    @field_validator("start_time", "end_time", mode="before")
+    @classmethod
+    def parse_time_or_delta(cls, v) -> str:
+        if isinstance(v, timedelta):
+            total_seconds = int(v.total_seconds())
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            seconds = total_seconds % 60
+            return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+        if isinstance(v, time):
+            return v.strftime("%H:%M:%S")
+        return str(v)

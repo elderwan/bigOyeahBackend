@@ -162,6 +162,7 @@ async def admin_recent_activity(
 @router.get("/audit-log", response_model=list[dict])
 async def audit_log(
     limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
     entity_type: str | None = Query(default=None),
     entity_id: int | None = Query(default=None),
     action: str | None = Query(default=None),
@@ -186,11 +187,12 @@ async def audit_log(
               AND (:date_from IS NULL OR al.created_at >= :date_from)
               AND (:date_to IS NULL OR al.created_at <= :date_to)
             ORDER BY al.created_at DESC
-            LIMIT :limit
+            LIMIT :limit OFFSET :offset
             """
         ),
         {
             "limit": limit,
+            "offset": offset,
             "entity_type": entity_type,
             "entity_id": entity_id,
             "action": action,
@@ -3225,10 +3227,10 @@ async def admin_export_report(
             r["member_name"], r["coach_name"], r["course_name"], r["gym_name"] or "Home Service",
             r["status"], float(r["price"]), r["payment_status"] or "UNPAID", float(r["final_amount"] or 0.0)
         ])
-    csv_content = output.getvalue()
+    csv_content = "\ufeff" + output.getvalue()
     return Response(
-        content=csv_content,
-        media_type="text/csv",
+        content=csv_content.encode("utf-8-sig"),
+        media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": "attachment; filename=fitbooking_report.csv"},
     )
 
