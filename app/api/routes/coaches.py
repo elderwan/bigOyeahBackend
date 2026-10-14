@@ -2,6 +2,7 @@ from datetime import datetime, time, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
@@ -482,6 +483,9 @@ async def create_member_review(
                 },
             )
         await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="A review for this booking already exists")
     except Exception:
         await db.rollback()
         raise
@@ -615,6 +619,35 @@ async def block_schedule_slots(
             else "该时间段已有学员预约，无法直接锁定。请先与学员沟通协调退改。"
         )
         raise HTTPException(status_code=409, detail=conflict_msg)
+
+    # Also check booking table directly for active bookings
+    booking_conflict = await db.execute(
+        text(
+            """
+            SELECT booking_id
+            FROM booking
+            WHERE coach_id = :coach_id
+              AND booking_date = :bdate
+              AND status IN ('CONFIRMED', 'PENDING')
+              AND start_time < :etime
+              AND end_time > :stime
+            LIMIT 1
+            """
+        ),
+        {
+            "coach_id": coach_id,
+            "bdate": target_date,
+            "stime": stime,
+            "etime": etime,
+        },
+    )
+    b_row = booking_conflict.mappings().first()
+    if b_row is not None:
+        b_id = b_row["booking_id"]
+        raise HTTPException(
+            status_code=409,
+            detail=f"该时间段已有学员预约（预约号 #{b_id}），无法直接锁定。请先与学员沟通协调退改。",
+        )
 
     # Insert or update slots to BLOCKED
     curr = start_dt

@@ -2531,6 +2531,29 @@ async def admin_cancel_booking(
     return row
 
 
+@router.post("/bookings/auto-complete", response_model=dict)
+async def admin_autocomplete_bookings(
+    _: dict = Depends(_require_admin),
+    db: AsyncSession = Depends(get_app_db),
+) -> dict:
+    result = await db.execute(
+        text(
+            """
+            UPDATE booking
+            SET status = 'COMPLETED', completed_at = NOW(), updated_at = NOW()
+            WHERE status = 'CONFIRMED'
+              AND TIMESTAMP(booking_date, end_time) < NOW() - INTERVAL 30 MINUTE
+            """
+        )
+    )
+    await db.commit()
+    return {
+        "success": True,
+        "message": f"Auto-completed {result.rowcount} expired bookings",
+        "completed_count": result.rowcount,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Package catalog management
 # ---------------------------------------------------------------------------

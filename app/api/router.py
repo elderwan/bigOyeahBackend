@@ -5,6 +5,7 @@ from app.api.routes import (
     auth,
     bookings,
     catalog,
+    chat_ws,
     coaches,
     health,
     member_features,
@@ -24,3 +25,4 @@ api_router.include_router(schedules.router, prefix="/coaches", tags=["schedules"
 api_router.include_router(bookings.router, prefix="/bookings", tags=["bookings"])
 api_router.include_router(orders.router, prefix="/orders", tags=["orders"])
 api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
+api_router.include_router(chat_ws.router, tags=["chat_ws"])

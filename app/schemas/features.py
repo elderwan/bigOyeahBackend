@@ -20,7 +20,7 @@ class ReviewCreateRequest(BaseModel):
 
 class PackagePurchaseRequest(BaseModel):
     package_type: Literal["5+1", "10+3", "20+7"]
-    payment_method: Literal["PROMPTPAY", "CARD", "CASH"]
+    payment_method: Literal["PROMPTPAY", "CARD", "CASH"] = "PROMPTPAY"
 
 
 class FitnessProfileUpdate(BaseModel):

@@ -50,8 +50,31 @@ def generate_promptpay_payload(target: str, amount: float | Decimal | None = Non
     return raw + checksum
 
 
+async def _assert_order_access(order: dict, user: dict, db: AsyncSession) -> None:
+    if user.get("role") == "ADMIN":
+        return
+    user_id = user.get("user_id")
+    order_owner_user_id = None
+    if order.get("booking_id"):
+        b_res = await db.execute(
+            text("SELECT m.user_id FROM booking b JOIN member m ON m.member_id = b.member_id WHERE b.booking_id = :bid"),
+            {"bid": order["booking_id"]},
+        )
+        order_owner_user_id = b_res.scalar_one_or_none()
+    elif order.get("package_id"):
+        p_res = await db.execute(
+            text("SELECT m.user_id FROM member_package mp JOIN member m ON m.member_id = mp.member_id WHERE mp.package_id = :pid"),
+            {"pid": order["package_id"]},
+        )
+        order_owner_user_id = p_res.scalar_one_or_none()
+    if order_owner_user_id is not None and order_owner_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Forbidden: You do not have permission for this order")
+
+
 @router.post("/{order_id}/promptpay-qr", response_model=dict)
 @router.get("/{order_id}/promptpay-qr", response_model=dict)
+@router.post("/{order_id}/qr", response_model=dict)
+@router.get("/{order_id}/qr", response_model=dict)
 async def get_order_promptpay_qr(
     order_id: int,
     user: dict = Depends(get_current_user),
@@ -73,6 +96,8 @@ async def get_order_promptpay_qr(
     if order is None:
         raise HTTPException(status_code=404, detail="Order not found")
 
+    await _assert_order_access(order, user, db)
+
     amount = float(order["final_amount"] if order["final_amount"] is not None else order["total_amount"])
     # Default platform promptpay merchant account ID
     merchant_target = "0812345678"
@@ -87,6 +112,7 @@ async def get_order_promptpay_qr(
         "currency": "THB",
         "payment_status": order["payment_status"],
         "promptpay_payload": qr_payload,
+        "qr_payload": qr_payload,
         "qr_data": qr_payload,
     }
 
@@ -105,6 +131,8 @@ async def mock_confirm_order_payment(
     order = order_res.mappings().one_or_none()
     if order is None:
         raise HTTPException(status_code=404, detail="Order not found")
+
+    await _assert_order_access(order, user, db)
 
     if order["payment_status"] != "PAID":
         await db.execute(
